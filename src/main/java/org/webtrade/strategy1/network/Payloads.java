@@ -85,9 +85,13 @@ public final class Payloads {
 
     /** Once a second: the turn's clock, the army, and every province being taken (by whom, how far along). */
     public record Hud(int turnLeft, int army, int armyMax, int peasants, int idle, long[] keys, int[] by, int[] progress, int mode, int wave,
-                      int monsters, int clock) implements CustomPacketPayload {
+                      int monsters, int clock, int[] market, int[] ranking, int goal, int caravans) implements CustomPacketPayload {
         public static final Type<Hud> TYPE = new Type<>(Strategy1.id("hud"));
         public static final StreamCodec<FriendlyByteBuf, Hud> CODEC = StreamCodec.of((b, h) -> {
+            b.writeVarIntArray(h.market);
+            b.writeVarIntArray(h.ranking);
+            b.writeVarInt(h.goal);
+            b.writeVarInt(h.caravans);
             b.writeVarInt(h.mode);
             b.writeVarInt(h.wave);
             b.writeVarInt(h.monsters);
@@ -101,9 +105,11 @@ public final class Payloads {
             b.writeVarIntArray(h.by);
             b.writeVarIntArray(h.progress);
         }, b -> {
+            int[] market = b.readVarIntArray(), ranking = b.readVarIntArray();
+            int goal = b.readVarInt(), caravans = b.readVarInt();
             int mode = b.readVarInt(), wave = b.readVarInt(), monsters = b.readVarInt(), clock = b.readInt();
             return new Hud(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readLongArray(), b.readVarIntArray(), b.readVarIntArray(),
-                    mode, wave, monsters, clock);
+                    mode, wave, monsters, clock, market, ranking, goal, caravans);
         });
 
         @Override
@@ -240,7 +246,7 @@ public final class Payloads {
 
     /** Something done with a structure: make a unit there, take an archer down, pull it down. */
     public record StructureAction(int id, int action, int arg) implements CustomPacketPayload {
-        public static final int MAKE = 1, UNMAN = 2, DEMOLISH = 3, UPGRADE = 4;
+        public static final int MAKE = 1, UNMAN = 2, DEMOLISH = 3, UPGRADE = 4, SELL = 5, BUY = 6, CARAVAN = 7;
         /** What MAKE makes: soldiers 0–4 (barracks), siege 10–11 (workshop), ships 20–21 (port). */
         public static final int CATAPULT = 10, TREBUCHET = 11, TRANSPORT = 20, WARSHIP = 21;
         public static final Type<StructureAction> TYPE = new Type<>(Strategy1.id("structure_action"));

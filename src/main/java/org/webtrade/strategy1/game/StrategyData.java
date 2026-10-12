@@ -37,6 +37,11 @@ public final class StrategyData extends SavedData {
     public boolean coop = true;
     /** The siege mode's nights survived (the wave now, or the last one). */
     public int wave;
+    /** The market's prices (food, wood, stone, iron, per lot), the caravans on the road. */
+    public double[] prices;
+    public final java.util.List<Market.Caravan> caravans = new java.util.ArrayList<>();
+    /** The trading mode: how much richer a realm must grow to win, and who did (-1: nobody yet). */
+    public int tradeGoal = 6000, winner = -1;
     public int turn;
     public int nextFaction = 1;
     public boolean generated;
@@ -139,6 +144,23 @@ public final class StrategyData extends SavedData {
         t.putInt("realms", realms);
         t.putBoolean("coop", coop);
         t.putInt("wave", wave);
+        if (prices != null) {
+            int[] p = new int[prices.length];
+            for (int i = 0; i < p.length; i++) p[i] = (int) Math.round(prices[i] * 100);
+            t.putIntArray("prices", p);
+        }
+        ListTag cs = new ListTag();
+        for (Market.Caravan c : caravans) {
+            CompoundTag e = new CompoundTag();
+            e.putInt("f", c.faction());
+            e.putInt("to", c.to());
+            e.putLong("back", c.back());
+            e.putInt("gold", c.gold());
+            cs.add(e);
+        }
+        t.put("caravans", cs);
+        t.putInt("tradeGoal", tradeGoal);
+        t.putInt("winner", winner);
         ListTag ss = new ListTag();
         for (org.webtrade.strategy1.build.Structure s : structures.values()) ss.add(s.save());
         t.put("structures", ss);
@@ -168,6 +190,17 @@ public final class StrategyData extends SavedData {
         d.realms = t.getIntOr("realms", Mode.CONQUEST.realms);
         d.coop = t.getBooleanOr("coop", true);
         d.wave = t.getIntOr("wave", 0);
+        t.getIntArray("prices").ifPresent(p -> {
+            d.prices = new double[p.length];
+            for (int i = 0; i < p.length; i++) d.prices[i] = p[i] / 100.0;
+        });
+        ListTag cs = t.getListOrEmpty("caravans");
+        for (int i = 0; i < cs.size(); i++) {
+            CompoundTag e = cs.getCompoundOrEmpty(i);
+            d.caravans.add(new Market.Caravan(e.getIntOr("f", 0), e.getIntOr("to", 0), e.getLongOr("back", 0), e.getIntOr("gold", 0)));
+        }
+        d.tradeGoal = t.getIntOr("tradeGoal", 6000);
+        d.winner = t.getIntOr("winner", -1);
         ListTag ss = t.getListOrEmpty("structures");
         for (int i = 0; i < ss.size(); i++) {
             org.webtrade.strategy1.build.Structure s = org.webtrade.strategy1.build.Structure.load(ss.getCompoundOrEmpty(i));
