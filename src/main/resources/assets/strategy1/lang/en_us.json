@@ -324,5 +324,6 @@
   "strategy1.engine.2.info": "Stones into the crowd",
   "strategy1.engine.3": "Fire brazier",
   "strategy1.engine.3.info": "Sets everything near ablaze",
-  "strategy1.ok.engine": "On the tower: %s."
+  "strategy1.ok.engine": "On the tower: %s.",
+  "strategy1.err.no_water": "There's no open water by the port for a ship."
 }

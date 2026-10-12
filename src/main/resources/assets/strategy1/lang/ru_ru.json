@@ -324,5 +324,6 @@
   "strategy1.engine.2.info": "Камни по толпе",
   "strategy1.engine.3": "Огненная жаровня",
   "strategy1.engine.3.info": "Поджигает всех рядом",
-  "strategy1.ok.engine": "На башне: %s."
+  "strategy1.ok.engine": "На башне: %s.",
+  "strategy1.err.no_water": "У порта нет открытой воды для корабля."
 }
