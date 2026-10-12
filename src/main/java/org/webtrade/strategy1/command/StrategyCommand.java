@@ -37,6 +37,11 @@ public final class StrategyCommand {
                                     ctx.getSource().sendSuccess(() -> Component.translatable(d.mode.key()), true);
                                     return 1;
                                 })))
+                .then(Commands.literal("wave").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .executes(ctx -> {
+                            org.webtrade.strategy1.game.Waves.start(ctx.getSource().getServer().overworld(), StrategyManager.data());
+                            return 1;
+                        }))
                 .then(Commands.literal("turn").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .executes(ctx -> {
                             StrategyManager.forceTurn();

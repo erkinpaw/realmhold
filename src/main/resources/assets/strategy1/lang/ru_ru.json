@@ -309,5 +309,20 @@
   "strategy1.mode.trade.info": "Без войн: кто станет богаче — торговлей и ремёслами.",
   "strategy1.mode.sandbox": "Развитие",
   "strategy1.mode.sandbox.info": "Только вы и земля: стройтесь в мире.",
-  "strategy1.msg.joined": "Вы присоединились к державе: %s."
+  "strategy1.msg.joined": "Вы присоединились к державе: %s.",
+  "strategy1.wave.title": "Ночь %s",
+  "strategy1.wave.subtitle": "Идут мертвецы: %s",
+  "strategy1.wave.dawn": "Рассвет! Ночь %s пережита.",
+  "strategy1.wave.dawn_title": "Рассвет",
+  "strategy1.wave.survived": "Пережито ночей: %s",
+  "strategy1.wave.brute": "Великан",
+  "strategy1.wave.lost": "Мертвецы захватили провинцию %s!",
+  "strategy1.wave.fallen": "%s пала после %s ночей.",
+  "strategy1.engine.1": "Баллиста",
+  "strategy1.engine.1.info": "Тяжёлые болты, далеко",
+  "strategy1.engine.2": "Катапульта на башне",
+  "strategy1.engine.2.info": "Камни по толпе",
+  "strategy1.engine.3": "Огненная жаровня",
+  "strategy1.engine.3.info": "Поджигает всех рядом",
+  "strategy1.ok.engine": "На башне: %s."
 }
