@@ -30,6 +30,8 @@ public final class Faction {
     public final int color;
 
     public final int[] res = new int[Res.COUNT];
+    /** What its peasants carried home this season (for the season's tally). */
+    public final int[] brought = new int[Res.COUNT];
     public int age = 1;
     /** Troops in reserve (AI: its whole field army, counted; player: unused). */
     public int reserve;
