@@ -364,6 +364,20 @@ def _():
     return p.done()
 
 
+@icon('outpost')
+def _():
+    p = Pic()
+    # a little stockade with the realm's flag over it
+    for i, x in enumerate(range(2, 17, 3)):
+        p.rect(x, 11, x + 1, 18, WOOD if i % 2 == 0 else WOOD_L)
+        p.poly([(x, 11), (x + 0.5, 9), (x + 1, 11)], WOOD_L)
+    p.rect(2, 14, 17, 15, WOOD_D)
+    p.line(11, 1, 11, 12, WOOD_D)
+    p.poly([(12, 1), (18, 3), (12, 6)], (60, 160, 230))
+    p.px(13, 3, WHITE)
+    return p.done()
+
+
 @icon('path')
 def _():
     p = Pic()

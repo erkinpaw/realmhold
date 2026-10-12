@@ -299,6 +299,15 @@ public final class StrategyManager {
             }
         }
         standing.forEach((key, by) -> by.forEach((f, n) -> armyCapture(level, data.province(key), f, n)));
+        // a realm's outposts with a soldier in them: their provinces come over, unless someone still holds them
+        for (org.webtrade.strategy1.build.Structure st : data.structures.values()) {
+            if (st.type != org.webtrade.strategy1.build.StructureType.OUTPOST || !st.built() || st.archers <= 0) continue;
+            Province p = data.province(st.province());
+            if (p == null || p.owner == st.owner || !data.hostile(st.owner, p.owner)) continue;
+            // (its garrison comes out against the outpost)
+            if (p.garrison > 0) threatened.add(p.key());
+            outpostCapture(level, p, st.owner);
+        }
         for (Raid r : RAIDS) threatened.add(r.target);
         musters(level, threatened);
         raids(level);
@@ -326,6 +335,9 @@ public final class StrategyManager {
     /** A realm's soldiers stand in the circle at a province's centre: with nobody left to defend it, it is theirs bit by bit. */
     private static void armyCapture(ServerLevel level, Province here, int f, int soldiers) {
         if (here == null || !here.terrain.land() || here.owner == f || !data.hostile(f, here.owner)) return;
+        // (a player's realm takes land by its outposts, not by standing about)
+        Faction taker = data.faction(f);
+        if (taker != null && taker.player()) return;
         if (!data.borders(f, here.hex) && !data.owned(f).isEmpty()) return;
         if (contested(level, here, f)) return;
         Capture c = CAPTURES.computeIfAbsent(here.key(), k -> new Capture());
@@ -336,6 +348,23 @@ public final class StrategyManager {
         if (c.advanced) return;
         c.advanced = true;
         c.progress += 1 + Math.min(3, soldiers / 2);
+        if (c.progress >= Rules.CAPTURE) {
+            CAPTURES.remove(here.key());
+            capture(here, f, 1);
+        }
+    }
+
+    /** An outpost kept by a soldier: with nobody left to defend the province, it is the realm's bit by bit. */
+    private static void outpostCapture(ServerLevel level, Province here, int f) {
+        if (contested(level, here, f)) return;
+        Capture c = CAPTURES.computeIfAbsent(here.key(), k -> new Capture());
+        if (c.by != f) {
+            c.by = f;
+            c.progress = 0;
+        }
+        if (c.advanced) return;
+        c.advanced = true;
+        c.progress += 1;
         if (c.progress >= Rules.CAPTURE) {
             CAPTURES.remove(here.key());
             capture(here, f, 1);

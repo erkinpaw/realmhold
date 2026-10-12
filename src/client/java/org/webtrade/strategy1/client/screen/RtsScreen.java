@@ -574,10 +574,13 @@ public class RtsScreen extends Screen {
             mark(p.ground == null ? p.structure.aabb().getCenter() : p.ground, HIT);
             return;
         }
-        if (p.structure != null && p.structure.owner() == ClientState.me() && StructureType.of(p.structure.type()).manned() && !archers.isEmpty()) {
-            orderTo(archers, Payloads.UnitOrder.POST, p.ground, p.structure.id());
+        // (an outpost takes one soldier of any kind; towers and walls take bowmen)
+        boolean outpost = p.structure != null && p.structure.type() == StructureType.OUTPOST.ordinal();
+        Set<Integer> posting = outpost ? soldiers.stream().limit(1).collect(java.util.stream.Collectors.toSet()) : archers;
+        if (p.structure != null && p.structure.owner() == ClientState.me() && StructureType.of(p.structure.type()).manned() && !posting.isEmpty()) {
+            orderTo(posting, Payloads.UnitOrder.POST, p.ground, p.structure.id());
             Set<Integer> rest = new HashSet<>(SELECTED);
-            rest.removeAll(archers);
+            rest.removeAll(posting);
             if (p.ground != null) orderTo(rest, Payloads.UnitOrder.MOVE, p.ground, -1);
             mark(p.structure.aabb().getCenter(), GO);
             return;
