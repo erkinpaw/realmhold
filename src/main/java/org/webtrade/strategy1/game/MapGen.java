@@ -56,10 +56,12 @@ public final class MapGen {
                 data.provinces.put(h.key(), make(h, gen, rs, sea, random));
             }
         }
-        placeRealms(data, origin, random);
+        long t0 = System.currentTimeMillis();
+        placeRealms(level, data, origin, random);
         data.generated = true;
         data.touch();
-        Strategy1.LOGGER.info("Strategic map laid out: {} provinces, {} realms", data.provinces.size(), data.factions.size());
+        Strategy1.LOGGER.info("Strategic map laid out: {} provinces, {} realms (capitals chosen in {} ms)", data.provinces.size(), data.factions.size(),
+                System.currentTimeMillis() - t0);
     }
 
     private static Province make(Hex h, ChunkGenerator gen, RandomState rs, int sea, RandomSource random) {
@@ -123,15 +125,21 @@ public final class MapGen {
         };
     }
 
-    private static void placeRealms(StrategyData data, Hex origin, RandomSource random) {
+    private static void placeRealms(ServerLevel level, StrategyData data, Hex origin, RandomSource random) {
         List<Province> candidates = new ArrayList<>();
         for (Province p : data.provinces.values()) {
             int d = p.hex.distance(origin);
             if (p.terrain.land() && d >= 6 && d <= RADIUS - 2 && landAround(data, p.hex) >= 4) candidates.add(p);
         }
-        // (shuffled, then good land first)
+        // (shuffled, then the best ground first: level, dry, not up a mountain nor out on an island)
         java.util.Collections.shuffle(candidates, new java.util.Random(random.nextLong()));
+        // (only the likeliest are looked at closely: the land with the most land round it)
         candidates.sort(Comparator.comparingInt(p -> -landAround(data, p.hex)));
+        if (candidates.size() > Math.max(30, data.realms * 8)) candidates = new ArrayList<>(candidates.subList(0, Math.max(30, data.realms * 8)));
+        java.util.Map<Province, Double> score = new java.util.HashMap<>();
+        for (Province p : candidates) score.put(p, Site.score(level, data, p));
+        candidates.removeIf(p -> score.get(p) >= Site.UNFIT);
+        candidates.sort(Comparator.comparingDouble(score::get));
         List<Province> capitals = new ArrayList<>();
         for (Province p : candidates) {
             if (capitals.size() >= data.realms) break;
@@ -173,22 +181,42 @@ public final class MapGen {
     }
 
     /** A player's own realm, round the free land nearest to where they stand. */
-    public static Faction foundPlayerRealm(StrategyData data, UUID player, String name, double x, double z) {
+    public static Faction foundPlayerRealm(ServerLevel level, StrategyData data, UUID player, String name, double x, double z) {
         Hex at = Hex.at(x, z);
         Province best = null;
         double bestScore = Double.MAX_VALUE;
-        for (Province p : data.provinces.values()) {
-            if (!p.terrain.land() || !p.neutral()) continue;
+        List<Province> near = new ArrayList<>();
+        for (Province p : data.provinces.values()) if (p.terrain.land() && p.neutral() && p.hex.distance(at) <= 4) near.add(p);
+        near.sort(Comparator.comparingInt(p -> p.hex.distance(at)));
+        // (the nearest few looked at closely: each look at the land costs the generator)
+        int looked = 0;
+        for (Province p : near) {
+            if (p.hex.distance(at) * 6 >= bestScore || looked >= 24) break;
             boolean nearEnemy = false;
             for (Hex n : p.hex.neighbors()) {
                 Province q = data.province(n);
                 if (q != null && !q.neutral()) nearEnemy = true;
             }
             if (nearEnemy) continue;
-            double score = p.hex.distance(at) * 10 - landAround(data, p.hex);
+            // near where the world put us, on good ground for a keep
+            looked++;
+            double site = Site.score(level, data, p);
+            if (site >= Site.UNFIT) continue;
+            double score = p.hex.distance(at) * 6 + site;
             if (score < bestScore) {
                 bestScore = score;
                 best = p;
+            }
+        }
+        if (best == null) {
+            // (nowhere good near: the nearest free land then)
+            for (Province p : data.provinces.values()) {
+                if (!p.terrain.land() || !p.neutral()) continue;
+                double score = p.hex.distance(at) * 10 - landAround(data, p.hex);
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = p;
+                }
             }
         }
         if (best == null) return null;

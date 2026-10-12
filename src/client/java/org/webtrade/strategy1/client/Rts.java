@@ -47,7 +47,7 @@ public final class Rts {
         var mine = ClientState.mine();
         if (mine != null && ClientState.PROVINCES.containsKey(mine.capital())) {
             Hex h = Hex.of(mine.capital());
-            if (h.distToCenter(focusX, focusZ) > 300) {
+            if (h.distToCenter(focusX, focusZ) > 48) {
                 focusX = h.centerX();
                 focusZ = h.centerZ();
             }
