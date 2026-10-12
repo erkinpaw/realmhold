@@ -422,7 +422,8 @@ public final class Actions {
                         s.ship = o.target();
                     }
                     case Payloads.UnitOrder.POST -> {
-                        if (s.unit().ranged) {
+                        Structure at = StrategyManager.data().structures.get(o.target());
+                        if (s.unit().ranged || at != null && at.type == StructureType.OUTPOST) {
                             s.order(SoldierEntity.Mode.POST, null);
                             s.structure = o.target();
                         } else s.order(SoldierEntity.Mode.MOVE, to);
