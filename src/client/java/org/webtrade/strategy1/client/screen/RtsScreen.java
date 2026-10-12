@@ -40,6 +40,7 @@ import org.webtrade.strategy1.client.Keys;
 import org.webtrade.strategy1.client.Rts;
 import org.webtrade.strategy1.client.StrategyHud;
 import org.webtrade.strategy1.client.ui.IconButton;
+import org.webtrade.strategy1.client.ui.Icons;
 import org.webtrade.strategy1.client.ui.Palette;
 import org.webtrade.strategy1.client.ui.Ui;
 import org.webtrade.strategy1.entity.PeasantEntity;
@@ -79,13 +80,13 @@ public class RtsScreen extends Screen {
     private int INFO = 196;
 
     private enum Tab {
-        ECONOMY(StructureType.Category.ECONOMY, Items.WHEAT), MILITARY(StructureType.Category.MILITARY, Items.IRON_SWORD),
-        DEFENCE(StructureType.Category.DEFENCE, Items.STONE_BRICK_WALL), ROADS(StructureType.Category.ROADS, Items.DIRT_PATH), ARMY(null, Items.SHIELD);
+        ECONOMY(StructureType.Category.ECONOMY, Icons.TAB_ECONOMY), MILITARY(StructureType.Category.MILITARY, Icons.TAB_MILITARY),
+        DEFENCE(StructureType.Category.DEFENCE, Icons.TAB_DEFENCE), ROADS(StructureType.Category.ROADS, Icons.TAB_ROADS), ARMY(null, Icons.TAB_ARMY);
 
         final StructureType.Category category;
-        final Item icon;
+        final Identifier icon;
 
-        Tab(StructureType.Category category, Item icon) {
+        Tab(StructureType.Category category, Identifier icon) {
             this.category = category;
             this.icon = icon;
         }
@@ -163,22 +164,15 @@ public class RtsScreen extends Screen {
 
     // ------------------------------------------------------------------ the pictures
 
-    private static Item unitIcon(UnitType u) {
-        return switch (u) {
-            case MILITIA -> Items.STONE_SWORD;
-            case ARCHER -> Items.BOW;
-            case SWORDSMAN -> Items.IRON_SWORD;
-            case KNIGHT -> Items.DIAMOND_SWORD;
-            case GUARD -> Items.NETHERITE_SWORD;
-        };
+    private static Identifier unitIcon(UnitType u) {
+        return Icons.unit(u);
     }
 
-    private static Item icon(Entity e) {
+    private static Identifier icon(Entity e) {
         if (e instanceof SoldierEntity s) return unitIcon(s.unit());
-        if (e instanceof SiegeEntity g) return g.kind() == SiegeEntity.Kind.TREBUCHET ? Items.DISPENSER : Items.CROSSBOW;
-        if (e instanceof ShipEntity sh) return sh.kind() == ShipEntity.Kind.WARSHIP ? Items.DARK_OAK_BOAT : Items.OAK_BOAT;
-        if (e instanceof PeasantEntity) return Items.WOODEN_HOE;
-        return Items.BARRIER;
+        if (e instanceof SiegeEntity g) return g.kind() == SiegeEntity.Kind.TREBUCHET ? Icons.TREBUCHET : Icons.CATAPULT;
+        if (e instanceof ShipEntity sh) return sh.kind() == ShipEntity.Kind.WARSHIP ? Icons.WARSHIP : Icons.TRANSPORT;
+        return Icons.PEASANT;
     }
 
     private static String kindKey(Entity e) {
@@ -225,9 +219,9 @@ public class RtsScreen extends Screen {
             x += ICON + 2;
         }
         // the corner: the map, the way out
-        addRenderableWidget(new IconButton(width - 2 * (ICON + 2) - 2, 1, ICON - 2, Items.FILLED_MAP,
+        addRenderableWidget(new IconButton(width - 2 * (ICON + 2) - 2, 1, ICON - 2, Icons.MAP,
                 new IconButton.Info(Component.translatable("strategy1.rts.map"), null, Component.translatable("strategy1.tip.map")), b -> openMap()));
-        addRenderableWidget(new IconButton(width - (ICON + 2) - 2, 1, ICON - 2, Items.OAK_DOOR,
+        addRenderableWidget(new IconButton(width - (ICON + 2) - 2, 1, ICON - 2, Icons.LEAVE,
                 new IconButton.Info(Component.translatable("strategy1.rts.leave"), null, Component.translatable("strategy1.rts.leave_tip")), b -> Rts.exit(minecraft)));
         var me = ClientState.mine();
         Payloads.StructureInfo st = ClientState.STRUCTURES.get(structure);
@@ -261,12 +255,19 @@ public class RtsScreen extends Screen {
         return b;
     }
 
+    private IconButton add(int i, Identifier icon, IconButton.Info info, boolean active, Runnable run) {
+        int row = i / perRow(), col = i % perRow();
+        IconButton b = addRenderableWidget(new IconButton(x0() + col * (ICON + 2), height - BAR + 6 + row * (ICON + 3), ICON, icon, info, x -> run.run()));
+        b.active = active;
+        return b;
+    }
+
     private void buildPanel(Payloads.FactionInfo me) {
         int i = 0;
         for (StructureType t : StructureType.values()) {
             if (t.category != tab.category) continue;
             boolean ok = me != null && have(t.requires);
-            add(i++, t.icon, new IconButton.Info(Component.translatable(t.key()), t.cost, Component.translatable(t.key() + ".info"), about(t)), ok, () -> {
+            add(i++, Icons.building(t), new IconButton.Info(Component.translatable(t.key()), t.cost, Component.translatable(t.key() + ".info"), about(t)), ok, () -> {
                 placing = t;
                 lineStart = null;
                 structure = -1;
@@ -315,7 +316,7 @@ public class RtsScreen extends Screen {
 
     private void unitPanel() {
         Map<String, List<Integer>> kinds = new LinkedHashMap<>();
-        Map<String, Item> icons = new LinkedHashMap<>();
+        Map<String, Identifier> icons = new LinkedHashMap<>();
         for (int id : SELECTED) {
             Entity e = minecraft.level.getEntity(id);
             if (e == null) continue;
@@ -324,7 +325,7 @@ public class RtsScreen extends Screen {
             icons.put(k, icon(e));
         }
         int i = 0;
-        add(i++, Items.SHIELD, new IconButton.Info(Component.translatable("strategy1.rts.hold"), null, Component.translatable("strategy1.rts.hold_tip"),
+        add(i++, Icons.HOLD, new IconButton.Info(Component.translatable("strategy1.rts.hold"), null, Component.translatable("strategy1.rts.hold_tip"),
                 List.of(Component.translatable("strategy1.tip.hold_key").withStyle(ChatFormatting.GRAY), Component.translatable("strategy1.rts.orders_tip").withStyle(ChatFormatting.GRAY))), true,
                 () -> order(Payloads.UnitOrder.HOLD, null, -1));
         i++;
@@ -348,10 +349,10 @@ public class RtsScreen extends Screen {
                 i = UnitType.values().length;
             }
             case WORKSHOP -> {
-                add(i++, Items.CROSSBOW, new IconButton.Info(Component.translatable("strategy1.siege.catapult"), Rules.CATAPULT_COST,
+                add(i++, Icons.CATAPULT, new IconButton.Info(Component.translatable("strategy1.siege.catapult"), Rules.CATAPULT_COST,
                         Component.translatable("strategy1.siege.catapult.info")), built && canPay(me, Rules.CATAPULT_COST),
                         () -> structureAction(st.id(), Payloads.StructureAction.MAKE, Payloads.StructureAction.CATAPULT));
-                add(i++, Items.DISPENSER, new IconButton.Info(Component.translatable("strategy1.siege.trebuchet"), Rules.TREBUCHET_COST,
+                add(i++, Icons.TREBUCHET, new IconButton.Info(Component.translatable("strategy1.siege.trebuchet"), Rules.TREBUCHET_COST,
                         Component.translatable("strategy1.siege.trebuchet.info")), built && canPay(me, Rules.TREBUCHET_COST),
                         () -> structureAction(st.id(), Payloads.StructureAction.MAKE, Payloads.StructureAction.TREBUCHET));
             }
@@ -364,7 +365,7 @@ public class RtsScreen extends Screen {
                             null, Component.translatable("strategy1.market.sell_line", org.webtrade.strategy1.game.Market.LOT, price)),
                             built && me.res()[r] >= org.webtrade.strategy1.game.Market.LOT, () -> structureAction(st.id(), Payloads.StructureAction.SELL, rr)).count(price);
                 }
-                add(5, Items.LEAD, new IconButton.Info(Component.translatable("strategy1.market.caravan"), org.webtrade.strategy1.game.Res.of(20, 20, 0, 0, 0),
+                add(5, Icons.CARAVAN, new IconButton.Info(Component.translatable("strategy1.market.caravan"), org.webtrade.strategy1.game.Res.of(20, 20, 0, 0, 0),
                         Component.translatable("strategy1.market.caravan_line")), built, () -> structureAction(st.id(), Payloads.StructureAction.CARAVAN, 0))
                         .count(hud == null ? 0 : hud.caravans());
                 i = perRow();
@@ -376,10 +377,10 @@ public class RtsScreen extends Screen {
                 }
             }
             case PORT -> {
-                add(i++, Items.OAK_BOAT, new IconButton.Info(Component.translatable("strategy1.ship.transport"), Rules.TRANSPORT_COST,
+                add(i++, Icons.TRANSPORT, new IconButton.Info(Component.translatable("strategy1.ship.transport"), Rules.TRANSPORT_COST,
                         Component.translatable("strategy1.ship.transport.info")), built && canPay(me, Rules.TRANSPORT_COST),
                         () -> structureAction(st.id(), Payloads.StructureAction.MAKE, Payloads.StructureAction.TRANSPORT));
-                add(i++, Items.DARK_OAK_BOAT, new IconButton.Info(Component.translatable("strategy1.ship.warship"), Rules.WARSHIP_COST,
+                add(i++, Icons.WARSHIP, new IconButton.Info(Component.translatable("strategy1.ship.warship"), Rules.WARSHIP_COST,
                         Component.translatable("strategy1.ship.warship.info")), built && canPay(me, Rules.WARSHIP_COST),
                         () -> structureAction(st.id(), Payloads.StructureAction.MAKE, Payloads.StructureAction.WARSHIP));
             }
@@ -387,21 +388,20 @@ public class RtsScreen extends Screen {
             }
         }
         if (t.tower() && built) {
-            Item[] icons = {Items.CROSSBOW, Items.COBBLESTONE, Items.CAMPFIRE};
             for (int e = 1; e <= 3; e++) {
                 int en = e;
                 int[] cost = org.webtrade.strategy1.build.Structures.engineCost(e);
-                add(i++, icons[e - 1], new IconButton.Info(Component.translatable("strategy1.engine." + e), cost, Component.translatable("strategy1.engine." + e + ".info")),
+                add(i++, Icons.engine(e), new IconButton.Info(Component.translatable("strategy1.engine." + e), cost, Component.translatable("strategy1.engine." + e + ".info")),
                         st.engine() != e && canPay(me, cost), () -> structureAction(st.id(), Payloads.StructureAction.UPGRADE, en)).chosen(st.engine() == e);
             }
             i++;
         }
         if (t.manned()) {
-            add(i++, Items.ARROW, new IconButton.Info(Component.translatable("strategy1.rts.unman"), null, Component.translatable("strategy1.rts.unman_tip")),
+            add(i++, Icons.UNMAN, new IconButton.Info(Component.translatable("strategy1.rts.unman"), null, Component.translatable("strategy1.rts.unman_tip")),
                     st.archers() > 0, () -> structureAction(st.id(), Payloads.StructureAction.UNMAN, 0)).count(st.archers());
         }
         if (t != StructureType.KEEP) {
-            add(i + 1, Items.TNT, new IconButton.Info(Component.translatable("strategy1.rts.demolish"), null, Component.translatable("strategy1.tip.demolish")), true,
+            add(i + 1, Icons.DEMOLISH, new IconButton.Info(Component.translatable("strategy1.rts.demolish"), null, Component.translatable("strategy1.tip.demolish")), true,
                     () -> structureAction(st.id(), Payloads.StructureAction.DEMOLISH, 0));
         }
     }
@@ -1053,27 +1053,30 @@ public class RtsScreen extends Screen {
     private void hovered(GuiGraphicsExtractor g, int mx, int my) {
         if (boxing || my > height - BAR || my < TOP || inMini(mx, my)) return;
         Pick p = pick(mx, my);
-        ItemStack icon;
+        Identifier sprite = null;
+        ItemStack icon = ItemStack.EMPTY;
         String text;
         int color;
         if (p.entity instanceof UnitEntity s) {
-            icon = new ItemStack(icon(s));
+            sprite = icon(s);
             text = Component.translatable(kindKey(s)).getString() + (s instanceof PeasantEntity pe ? " · " + Component.translatable(pe.jobKey()).getString() : "")
                     + "  ❤ " + (int) Math.ceil(s.getHealth()) + "/" + (int) s.getMaxHealth();
             color = s.color();
         } else if (p.structure != null) {
             StructureType t = StructureType.of(p.structure.type());
-            icon = new ItemStack(t.icon);
+            sprite = Icons.building(t);
+            if (sprite == null) icon = new ItemStack(t.icon);
             text = Component.translatable(t.key()).getString() + (t.deposit() ? "" : "  " + (p.structure.built() < 100 ? p.structure.built() + "%"
                     : p.structure.maxHp() > 0 ? "❤ " + p.structure.hp() + "/" + p.structure.maxHp() : ""));
             color = ClientState.color(p.structure.owner());
         } else return;
-        int w = 22 + font.width(text);
+        int w = 26 + font.width(text);
         int x = Math.min(mx + 12, width - w - 2), y = my + 12;
-        g.fill(x - 1, y - 1, x + w + 1, y + 17, 0xFF000000 | (color < 0 ? 0x888888 : color));
-        g.fill(x, y, x + w, y + 16, 0xE0201810);
-        g.item(icon, x, y);
-        g.text(font, text, x + 18, y + 4, 0xFFFFFFFF, true);
+        g.fill(x - 1, y - 1, x + w + 1, y + 21, 0xFF000000 | (color < 0 ? 0x888888 : color));
+        g.fill(x, y, x + w, y + 20, 0xE0201810);
+        if (sprite != null) Ui.blit(g, sprite, x, y, x + Icons.SIZE, y + Icons.SIZE);
+        else g.item(icon, x + 2, y + 2);
+        g.text(font, text, x + 22, y + 6, 0xFFFFFFFF, true);
     }
 
     // ------------------------------------------------------------------ the minimap

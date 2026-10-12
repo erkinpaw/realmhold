@@ -4,11 +4,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * A button that is a picture: an item in a slot, a count in its corner, lit when the mouse is on it, dimmed when it
+ * A button that is a picture (one of the strategist's own {@link Icons}, or an item) in a slot, a count in its corner, lit when the mouse is on it, dimmed when it
  * can't be used, framed in brass when chosen. Its name, cost and what it does are shown by the screen it's on
  * ({@link #info}), in a note by the mouse.
  */
@@ -25,6 +26,7 @@ public class IconButton extends Button.Plain {
     }
 
     private final ItemStack icon;
+    private final Identifier sprite;
     public final Info info;
     public int count = -1;
     public boolean chosen;
@@ -32,6 +34,14 @@ public class IconButton extends Button.Plain {
     public IconButton(int x, int y, int size, Item icon, Info info, OnPress onPress) {
         super(x, y, size, size, info == null ? Component.empty() : info.name(), onPress, DEFAULT_NARRATION);
         this.icon = new ItemStack(icon);
+        this.sprite = null;
+        this.info = info;
+    }
+
+    public IconButton(int x, int y, int size, Identifier sprite, Info info, OnPress onPress) {
+        super(x, y, size, size, info == null ? Component.empty() : info.name(), onPress, DEFAULT_NARRATION);
+        this.icon = ItemStack.EMPTY;
+        this.sprite = sprite;
         this.info = info;
     }
 
@@ -50,7 +60,10 @@ public class IconButton extends Button.Plain {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         if (chosen) g.fill(x - 1, y - 1, x + w + 1, y + h + 1, Palette.BRASS);
         Ui.blit(g, Ui.SLOT, x, y, x + w, y + h);
-        g.item(icon, x + (w - 16) / 2, y + (h - 16) / 2);
+        if (sprite != null) {
+            int s = Math.min(Icons.SIZE, Math.min(w, h));
+            Ui.blit(g, sprite, x + (w - s) / 2, y + (h - s) / 2, x + (w - s) / 2 + s, y + (h - s) / 2 + s);
+        } else g.item(icon, x + (w - 16) / 2, y + (h - 16) / 2);
         if (count >= 0) {
             String s = String.valueOf(count);
             var font = Minecraft.getInstance().font;
