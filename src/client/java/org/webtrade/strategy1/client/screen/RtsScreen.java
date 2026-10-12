@@ -107,6 +107,8 @@ public class RtsScreen extends Screen {
 
     private double pressX, pressY;
     private boolean boxing;
+    /** The enemy last pointed out to a tower (marked over its head). */
+    private static int aimed = -1;
     private int seenRevision = -1, seenStructures = -1, seenSelection = -1;
     /** The pictures of the top bar, where they are, to tell what they are when the mouse is on them. */
     private record Stat(int x0, int x1, Component name, Component line) {
@@ -459,6 +461,22 @@ public class RtsScreen extends Screen {
         return new Pick(miss ? null : block.getLocation(), miss ? null : block.getBlockPos(), ent == null ? null : ent.getEntity(), st);
     }
 
+    /** One of the enemy near a point of the ground (they're small, seen from high up). */
+    private Entity enemyNear(Vec3 at, double r) {
+        if (at == null) return null;
+        Entity best = null;
+        double bestD = r * r;
+        for (Entity e : minecraft.level.entitiesForRendering()) {
+            if (!(e instanceof LivingEntity l) || !l.isAlive() || !enemy(e)) continue;
+            double d = e.position().distanceToSqr(at.x, e.getY(), at.z);
+            if (d < bestD) {
+                bestD = d;
+                best = e;
+            }
+        }
+        return best;
+    }
+
     private boolean mine(Entity e) {
         return e instanceof UnitEntity u && u.faction() == ClientState.me() && u.isAlive() && !(e instanceof PeasantEntity);
     }
@@ -521,6 +539,18 @@ public class RtsScreen extends Screen {
 
     /** Right click: what the chosen units do, by what is under the mouse. */
     private void command(Pick p) {
+        // a tower (or wall, or the keep) chosen: right click on one of the enemy is its target
+        Payloads.StructureInfo chosen = ClientState.STRUCTURES.get(structure);
+        if (chosen != null && chosen.owner() == ClientState.me() && StructureType.of(chosen.type()).manned()) {
+            Entity target = p.entity != null && enemy(p.entity) ? p.entity : enemyNear(p.ground, 3);
+            if (target != null) {
+                if (ClientPlayNetworking.canSend(Payloads.StructureAction.TYPE))
+                    ClientPlayNetworking.send(new Payloads.StructureAction(chosen.id(), Payloads.StructureAction.AIM, target.getId()));
+                aimed = target.getId();
+                mark(target.position(), HIT);
+                return;
+            }
+        }
         if (SELECTED.isEmpty()) return;
         Set<Integer> soldiers = new HashSet<>(), archers = new HashSet<>();
         for (int id : SELECTED) {
@@ -739,6 +769,7 @@ public class RtsScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float partialTick) {
         structures(g);
         units(g);
+        monsters(g);
         captures(g);
         if (placing != null) preview(g, mx, my);
         else hovered(g, mx, my);
@@ -848,6 +879,8 @@ public class RtsScreen extends Screen {
             name = Component.translatable(StructureType.of(s.type()).key()).append(" · ").append(ClientState.name(s.owner()));
             line = s.built() < 100 ? Component.translatable("strategy1.rts.building", s.built())
                     : Component.literal("❤ " + s.hp() + "/" + s.maxHp() + (s.posts() > 0 ? "   ➶ " + s.archers() + "/" + s.posts() : ""));
+            if (s.built() >= 100 && StructureType.of(s.type()).manned() && s.owner() == ClientState.me())
+                line = line.copy().append(" · ").append(Component.translatable("strategy1.tip.aim"));
         } else if (!SELECTED.isEmpty()) {
             name = Component.translatable("strategy1.rts.selected", SELECTED.size());
             line = Component.translatable("strategy1.rts.orders_tip");
@@ -960,6 +993,37 @@ public class RtsScreen extends Screen {
         }
     }
 
+    /** Over each of the dead near: its health in red, a shield-bearer's shield over it, a bomber's lit fuse; the one aimed at marked. */
+    private void monsters(GuiGraphicsExtractor g) {
+        for (Entity e : minecraft.level.entitiesForRendering()) {
+            if (!(e instanceof LivingEntity m) || !m.isAlive() || e instanceof UnitEntity || !(e instanceof net.minecraft.world.entity.monster.Enemy)) continue;
+            if (Math.hypot(e.getX() - Rts.focusX, e.getZ() - Rts.focusZ) > 90) continue;
+            // (not those down in the caves under the land)
+            if (minecraft.level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, e.getBlockX(), e.getBlockZ()) - e.getY() > 4) continue;
+            Vec3 head = project(e.position().add(0, e.getBbHeight() + 0.35, 0));
+            if (head == null || head.z > 160) continue;
+            int x = (int) head.x, y = (int) head.y, bw = 16;
+            float hp = m.getHealth() / m.getMaxHealth();
+            g.fill(x - bw / 2 - 1, y - 4, x + bw / 2 + 1, y, 0xC0000000);
+            g.fill(x - bw / 2, y - 3, x - bw / 2 + Math.round(bw * hp), y - 1, 0xFFE03020);
+            if (e instanceof org.webtrade.strategy1.entity.ShieldZombie sz && sz.shield() > 0) {
+                float sh = sz.shield() / (float) Math.max(1, sz.shieldMax());
+                g.fill(x - bw / 2 - 1, y - 8, x + bw / 2 + 1, y - 4, 0xC0000000);
+                g.fill(x - bw / 2, y - 7, x - bw / 2 + Math.round(bw * sh), y - 5, 0xFF9CC8F0);
+            }
+            if (e instanceof org.webtrade.strategy1.entity.BomberZombie bz && bz.fuse() >= 0 && (bz.fuse() / 3) % 2 == 0) {
+                Ui.centered(g, font, "!", x, y - 14, 0xFFFF9020);
+            }
+            if (e.getId() == aimed) {
+                int c = 0xFFFF4040, r = 6, cy = y - 12;
+                g.fill(x - r, cy, x - 2, cy + 1, c);
+                g.fill(x + 2, cy, x + r, cy + 1, c);
+                g.fill(x, cy - r, x + 1, cy - 2, c);
+                g.fill(x, cy + 2, x + 1, cy + r, c);
+            }
+        }
+    }
+
     /** Over each province being taken: who takes it, how far along. */
     private void captures(GuiGraphicsExtractor g) {
         Payloads.Hud hud = ClientState.hud;
@@ -1062,6 +1126,13 @@ public class RtsScreen extends Screen {
             text = Component.translatable(kindKey(s)).getString() + (s instanceof PeasantEntity pe ? " · " + Component.translatable(pe.jobKey()).getString() : "")
                     + "  ❤ " + (int) Math.ceil(s.getHealth()) + "/" + (int) s.getMaxHealth();
             color = s.color();
+        } else if (p.entity instanceof LivingEntity m && enemy(m)) {
+            sprite = null;
+            icon = new ItemStack(m instanceof org.webtrade.strategy1.entity.BomberZombie ? Items.TNT : m instanceof org.webtrade.strategy1.entity.ShieldZombie
+                    ? Items.SHIELD : Items.ROTTEN_FLESH);
+            text = m.getName().getString() + "  ❤ " + (int) Math.ceil(m.getHealth()) + "/" + (int) m.getMaxHealth()
+                    + (m instanceof org.webtrade.strategy1.entity.ShieldZombie sz && sz.shield() > 0 ? "  ◈ " + sz.shield() + "/" + sz.shieldMax() : "");
+            color = 0xB02020;
         } else if (p.structure != null) {
             StructureType t = StructureType.of(p.structure.type());
             sprite = Icons.building(t);

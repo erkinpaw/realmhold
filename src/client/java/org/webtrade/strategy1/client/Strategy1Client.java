@@ -21,6 +21,8 @@ public class Strategy1Client implements ClientModInitializer {
         EntityRendererRegistry.register(ModContent.TREBUCHET, net.minecraft.client.renderer.entity.NoopRenderer::new);
         EntityRendererRegistry.register(ModContent.TRANSPORT, net.minecraft.client.renderer.entity.NoopRenderer::new);
         EntityRendererRegistry.register(ModContent.WARSHIP, net.minecraft.client.renderer.entity.NoopRenderer::new);
+        EntityRendererRegistry.register(ModContent.SHIELD_ZOMBIE, net.minecraft.client.renderer.entity.ZombieRenderer::new);
+        EntityRendererRegistry.register(ModContent.BOMBER_ZOMBIE, net.minecraft.client.renderer.entity.ZombieRenderer::new);
         EntityRendererRegistry.register(ModContent.BOULDER, ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 2.5F, false));
         ClientPlayNetworking.registerGlobalReceiver(Payloads.StructureSync.TYPE, (p, ctx) -> ClientState.structures(p));
         Keys.register();

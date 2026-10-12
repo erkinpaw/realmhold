@@ -319,7 +319,7 @@
   "strategy1.wave.lost": "Мертвецы захватили провинцию %s!",
   "strategy1.wave.fallen": "%s пала после %s ночей.",
   "strategy1.engine.1": "Баллиста",
-  "strategy1.engine.1.info": "Тяжёлые болты, далеко",
+  "strategy1.engine.1.info": "Тяжёлые болты, далеко. Ломает щиты щитоносцев",
   "strategy1.engine.2": "Катапульта на башне",
   "strategy1.engine.2.info": "Камни по толпе",
   "strategy1.engine.3": "Огненная жаровня",
@@ -399,5 +399,10 @@
   "strategy1.job.quarry": "каменотёс",
   "strategy1.job.iron_mine": "рудокоп",
   "strategy1.job.gold_mine": "рудокоп",
-  "strategy1.msg.idle_folk": "%s крестьян без дела: все места заняты. Постройте ещё ферм, лесорубок, каменоломен или рудников — они пойдут работать."
+  "strategy1.msg.idle_folk": "%s крестьян без дела: все места заняты. Постройте ещё ферм, лесорубок, каменоломен или рудников — они пойдут работать.",
+  "entity.strategy1.shield_zombie": "Щитоносец",
+  "entity.strategy1.bomber_zombie": "Подрывник",
+  "strategy1.tip.aim": "ПКМ по врагу — цель",
+  "strategy1.err.cant_aim": "Эта башня не может стрелять туда",
+  "strategy1.wave.kinds": "Щитоносцы прикрываются щитом — сначала сломайте его (баллиста, катапульта). Подрывники бегут к стенам — бейте их издалека."
 }
