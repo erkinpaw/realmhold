@@ -50,7 +50,7 @@
   "strategy1.ui.finer": "Finer (scale %s)",
   "strategy1.ui.coarser": "Coarser (scale %s)",
   "strategy1.msg.founded": "You founded the %s! Capital: %s (x %s, z %s).",
-  "strategy1.msg.help": "You are the strategist: no body, only a camera over the land. WASD — move the camera, wheel — height, Q/E — turn, click/box — choose soldiers, right click — order, 1–5 — raise, M — realms map, B — borders. To take a province, bring soldiers into the circle by its pillar and beat its garrison.",
+  "strategy1.msg.help": "You are the strategist: no body, only a camera over the land. WASD moves the camera, the wheel its height, Q/E turn, click/box chooses soldiers, right click orders, M the map, B the borders. To take a province, put up an outpost in it (Military tab) and put a soldier in it.",
   "strategy1.msg.captured": "%s takes the province of %s from %s.",
   "strategy1.msg.fallen": "%s has fallen!",
   "strategy1.msg.capital_fell": "The capital of %s, %s, has fallen! The new capital is %s.",
@@ -109,7 +109,7 @@
   "strategy1.map.yield": "Yield per turn:",
   "strategy1.map.buildings": "Economy: %s · Walls: %s",
   "strategy1.map.garrison": "Garrison: %s / %s",
-  "strategy1.map.take_how": "To take it: bring soldiers to the pillar at its centre. Its garrison will come out — beat it, then keep soldiers in the circle until the bar fills.",
+  "strategy1.map.take_how": "To take it: put up an outpost in the province (it must border your land) and put a soldier in it. The garrison comes out to fight: beat it, and the bar starts to fill.",
   "strategy1.map.take_border": "This province doesn't border your land. Take the ones between first.",
   "strategy1.map.take_peace": "You are at peace with its holder. Declare war to take it.",
   "strategy1.map.age": "%s",
@@ -404,5 +404,9 @@
   "entity.strategy1.bomber_zombie": "Bomber",
   "strategy1.tip.aim": "right click an enemy: target",
   "strategy1.err.cant_aim": "This tower can't shoot there",
-  "strategy1.wave.kinds": "Shield-bearers hide behind a shield: break it first (ballista, catapult). Bombers run for the walls: shoot them from afar."
+  "strategy1.wave.kinds": "Shield-bearers hide behind a shield: break it first (ballista, catapult). Bombers run for the walls: shoot them from afar.",
+  "strategy1.build.outpost": "Outpost",
+  "strategy1.build.outpost.info": "Goes on foreign land next to yours. Put 1 soldier in it (choose a soldier, right click the outpost) and the province is yours once its garrison is beaten.",
+  "strategy1.err.build_outpost": "An outpost goes wholly in a foreign province next to your land",
+  "strategy1.err.outpost_there": "You have an outpost here already"
 }
