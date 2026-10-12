@@ -46,6 +46,8 @@ final class Economy {
             f.gain(in);
             f.res[Res.FOOD.ordinal()] -= eat;
             boolean hungry = f.res[Res.FOOD.ordinal()] < 0;
+            int[] brought = f.brought.clone();
+            java.util.Arrays.fill(f.brought, 0);
             if (hungry) {
                 f.res[Res.FOOD.ordinal()] = 0;
                 // hunger: soldiers desert, the reserve first, then a garrison
@@ -57,8 +59,9 @@ final class Economy {
                 }
             }
             if (f.player()) {
-                StrategyManager.tell(f, Component.translatable("strategy1.msg.season", data.turn + 1, in[0] - eat, in[1], in[2], in[3], in[4])
-                        .withStyle(ChatFormatting.DARK_AQUA));
+                int[] b = brought;
+                StrategyManager.tell(f, Component.translatable("strategy1.msg.season", data.turn + 1, in[0] + b[0] - eat, in[1] + b[1], in[2] + b[2], in[3] + b[3],
+                        in[4] + b[4]).withStyle(ChatFormatting.DARK_AQUA));
                 if (hungry) StrategyManager.tell(f, Component.translatable("strategy1.msg.hunger").withStyle(ChatFormatting.RED));
             }
         }
