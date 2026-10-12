@@ -100,6 +100,9 @@ public final class StrategyManager {
             server = s;
             data = StrategyData.get(s);
             ticks = 0;
+            // (the clock starts again with each world: what was timed by the last one mustn't hold this one back)
+            lastSync = -20;
+            mapDirty = true;
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(s -> {
             server = null;
@@ -130,6 +133,7 @@ public final class StrategyManager {
         ServerLevel level = s.overworld();
         if (!data.generated) MapGen.generate(level, data);
         if (!data.forts) org.webtrade.strategy1.build.Structures.planForts(data);
+        if (!data.towns && data.forts) org.webtrade.strategy1.build.Structures.planTowns(data);
         if (!data.deposits) org.webtrade.strategy1.build.Structures.planDeposits(data, level.getSeed());
         ticks++;
         org.webtrade.strategy1.build.Structures.tick(level, ticks);

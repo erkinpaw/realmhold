@@ -32,6 +32,8 @@ public class Strategy1Client implements ClientModInitializer {
             Explored.clear();
             Rts.disconnected();
         });
+        // (and on joining, should a world have been left without a disconnect being heard)
+        ClientPlayConnectionEvents.JOIN.register((h, sender, c) -> Rts.disconnected());
         // the game's own front instead of the title screen (not while the game tests run, they want theirs)
         boolean testing = System.getProperty("fabric.client.gametest") != null;
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {

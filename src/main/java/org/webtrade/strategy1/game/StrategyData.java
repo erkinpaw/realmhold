@@ -31,6 +31,8 @@ public final class StrategyData extends SavedData {
     public boolean forts;
     /** The land's deposits have been planned. */
     public boolean deposits;
+    /** The AI capitals' towns have been planned. */
+    public boolean towns;
     /** How this world is played, how many AI realms it has, whether friends share one realm. */
     public Mode mode = Mode.CONQUEST;
     public int realms = Mode.CONQUEST.realms;
@@ -140,6 +142,7 @@ public final class StrategyData extends SavedData {
         t.putInt("nextStructure", nextStructure);
         t.putBoolean("forts", forts);
         t.putBoolean("deposits", deposits);
+        t.putBoolean("towns", towns);
         t.putInt("mode", mode.ordinal());
         t.putInt("realms", realms);
         t.putBoolean("coop", coop);
@@ -186,6 +189,7 @@ public final class StrategyData extends SavedData {
         d.nextStructure = t.getIntOr("nextStructure", 1);
         d.forts = t.getBooleanOr("forts", false);
         d.deposits = t.getBooleanOr("deposits", false);
+        d.towns = t.getBooleanOr("towns", false);
         d.mode = Mode.of(t.getIntOr("mode", 0));
         d.realms = t.getIntOr("realms", Mode.CONQUEST.realms);
         d.coop = t.getBooleanOr("coop", true);
