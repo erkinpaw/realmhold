@@ -140,6 +140,7 @@ public final class StrategyManager {
             org.webtrade.strategy1.build.Structures.second(level, ticks);
             org.webtrade.strategy1.build.Workforce.second(level);
             if (data.mode.waves) Waves.second(level, data);
+            Market.second(data, ticks);
         }
         if (ticks % Rules.TURN == 0) {
             Economy.turn(data);
@@ -238,6 +239,7 @@ public final class StrategyManager {
             // a stock of everything, to try every building and machine out
             mine.boosted = true;
             mine.gain(Res.of(Rules.TEST_STOCK, Rules.TEST_STOCK, Rules.TEST_STOCK, Rules.TEST_STOCK, Rules.TEST_STOCK));
+            mine.startWealth = -1;
             p.sendSystemMessage(Component.translatable("strategy1.msg.stock", Rules.TEST_STOCK).withStyle(ChatFormatting.AQUA));
             data.touch();
         }
@@ -755,8 +757,21 @@ public final class StrategyManager {
         int turnLeft = (int) ((Rules.TURN - ticks % Rules.TURN) / 20);
         int people = f == null ? 0 : org.webtrade.strategy1.build.Workforce.people(f), room = f == null ? 0 : org.webtrade.strategy1.build.Workforce.room(f.id);
         int idle = f == null ? 0 : org.webtrade.strategy1.build.Workforce.idle(f.id).size();
+        int[] market = new int[8];
+        for (int k = 0; k < 4; k++) {
+            market[k] = Market.sellPrice(data, Res.values()[k]);
+            market[4 + k] = Market.buyPrice(data, Res.values()[k]);
+        }
+        List<int[]> rank = Market.ranking(data);
+        int[] ranking = new int[rank.size() * 2];
+        for (int k = 0; k < rank.size(); k++) {
+            ranking[k * 2] = rank.get(k)[0];
+            ranking[k * 2 + 1] = rank.get(k)[1];
+        }
+        int caravans = 0;
+        for (Market.Caravan c : data.caravans) if (f != null && c.faction() == f.id) caravans++;
         ServerPlayNetworking.send(p, new Payloads.Hud(turnLeft, f == null ? 0 : f.army, room, f == null ? 0 : f.peasants, idle, keys, by, progress,
-                data.mode.ordinal(), data.wave, Waves.alive(), Waves.clock(server.overworld())));
+                data.mode.ordinal(), data.wave, Waves.alive(), Waves.clock(server.overworld()), market, ranking, data.tradeGoal, caravans));
     }
 
     // ------------------------------------------------------------------ the strategist's view
