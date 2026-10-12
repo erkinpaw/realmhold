@@ -129,6 +129,7 @@ public final class StrategyManager {
         ServerLevel level = s.overworld();
         if (!data.generated) MapGen.generate(level, data);
         if (!data.forts) org.webtrade.strategy1.build.Structures.planForts(data);
+        if (!data.deposits) org.webtrade.strategy1.build.Structures.planDeposits(data, level.getSeed());
         ticks++;
         org.webtrade.strategy1.build.Structures.tick(level, ticks);
         if (ticks % 100 == 0) sweepPuppets(level);
