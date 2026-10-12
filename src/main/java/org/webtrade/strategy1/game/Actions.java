@@ -371,7 +371,7 @@ public final class Actions {
         List<UnitEntity> mine = new ArrayList<>();
         for (int id : o.units()) {
             if (player.level().getEntity(id) instanceof UnitEntity u && u.isAlive() && u.role == UnitEntity.Role.ARMY
-                    && player.getUUID().equals(u.commander)) mine.add(u);
+                    && u.faction() == StrategyManager.data().factionIdOf(player.getUUID())) mine.add(u);
         }
         if (mine.isEmpty()) return;
         ServerLevel level = (ServerLevel) player.level();
