@@ -29,6 +29,7 @@ public class Strategy1Client implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(Payloads.Hud.TYPE, (p, ctx) -> ClientState.hud = p);
         ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> {
             ClientState.clear();
+            Explored.clear();
             Rts.disconnected();
         });
         // the game's own front instead of the title screen (not while the game tests run, they want theirs)
@@ -48,6 +49,7 @@ public class Strategy1Client implements ClientModInitializer {
             }
             Rts.tick(mc);
             Borders.tick(mc);
+            Explored.tick(mc);
         });
     }
 }
