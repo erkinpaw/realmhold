@@ -13,7 +13,8 @@
       "org.webtrade.strategy1.gametest.NavalClientGameTest",
       "org.webtrade.strategy1.gametest.TradeClientGameTest",
       "org.webtrade.strategy1.gametest.MapClientGameTest",
-      "org.webtrade.strategy1.gametest.TownClientGameTest"
+      "org.webtrade.strategy1.gametest.TownClientGameTest",
+      "org.webtrade.strategy1.gametest.HintsClientGameTest"
     ]
   }
 }
