@@ -31,6 +31,10 @@ public final class StrategyData extends SavedData {
     public boolean forts;
     /** The land's deposits have been planned. */
     public boolean deposits;
+    /** How this world is played, how many AI realms it has, whether friends share one realm. */
+    public Mode mode = Mode.CONQUEST;
+    public int realms = Mode.CONQUEST.realms;
+    public boolean coop = true;
     public int turn;
     public int nextFaction = 1;
     public boolean generated;
@@ -129,6 +133,9 @@ public final class StrategyData extends SavedData {
         t.putInt("nextStructure", nextStructure);
         t.putBoolean("forts", forts);
         t.putBoolean("deposits", deposits);
+        t.putInt("mode", mode.ordinal());
+        t.putInt("realms", realms);
+        t.putBoolean("coop", coop);
         ListTag ss = new ListTag();
         for (org.webtrade.strategy1.build.Structure s : structures.values()) ss.add(s.save());
         t.put("structures", ss);
@@ -154,6 +161,9 @@ public final class StrategyData extends SavedData {
         d.nextStructure = t.getIntOr("nextStructure", 1);
         d.forts = t.getBooleanOr("forts", false);
         d.deposits = t.getBooleanOr("deposits", false);
+        d.mode = Mode.of(t.getIntOr("mode", 0));
+        d.realms = t.getIntOr("realms", Mode.CONQUEST.realms);
+        d.coop = t.getBooleanOr("coop", true);
         ListTag ss = t.getListOrEmpty("structures");
         for (int i = 0; i < ss.size(); i++) {
             org.webtrade.strategy1.build.Structure s = org.webtrade.strategy1.build.Structure.load(ss.getCompoundOrEmpty(i));

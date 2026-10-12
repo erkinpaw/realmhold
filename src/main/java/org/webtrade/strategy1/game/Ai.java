@@ -154,7 +154,7 @@ final class Ai {
                 return;
             }
         }
-        if (f.wars.size() >= 2) return;
+        if (f.wars.size() >= 2 || !data.mode.war) return;
         double mine = data.strength(f);
         // neighbours, and how many rich provinces of theirs touch our land
         Set<Integer> neighbours = new HashSet<>();
