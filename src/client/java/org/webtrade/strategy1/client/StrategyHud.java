@@ -50,8 +50,6 @@ public final class StrategyHud {
         int w = 5 * 58 + 6;
         g.fill(x, y, x + w, y + 46, 0x90000000);
         g.text(font, ClientState.name(me.id()), x + 4, y + 3, 0xFFFFFFFF, true);
-        String age = Component.translatable("strategy1.age." + me.age()).getString();
-        g.text(font, age, x + w - 4 - font.width(age), y + 3, 0xFFC8C8C8, true);
         for (int i = 0; i < 5; i++) {
             int ix = x + 3 + i * 58;
             g.item(icon(i), ix, y + 14);

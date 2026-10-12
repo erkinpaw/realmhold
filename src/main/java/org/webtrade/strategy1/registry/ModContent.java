@@ -32,11 +32,16 @@ public final class ModContent {
             EntityType.Builder.<org.webtrade.strategy1.entity.BoulderEntity>of(org.webtrade.strategy1.entity.BoulderEntity::new, MobCategory.MISC)
                     .sized(0.8F, 0.8F).noLootTable().noSave().clientTrackingRange(10).updateInterval(1));
 
+    public static final EntityType<org.webtrade.strategy1.entity.PeasantEntity> PEASANT = entity("peasant",
+            EntityType.Builder.<org.webtrade.strategy1.entity.PeasantEntity>of(org.webtrade.strategy1.entity.PeasantEntity::new, MobCategory.MISC)
+                    .sized(0.6F, 1.8F).eyeHeight(1.62F).noLootTable().clientTrackingRange(10));
+
     private ModContent() {
     }
 
     public static void register() {
         FabricDefaultAttributeRegistry.register(SOLDIER, SoldierEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(PEASANT, org.webtrade.strategy1.entity.PeasantEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(CATAPULT, org.webtrade.strategy1.entity.SiegeEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(TREBUCHET, org.webtrade.strategy1.entity.SiegeEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(TRANSPORT, org.webtrade.strategy1.entity.ShipEntity.createAttributes());

@@ -3,7 +3,7 @@ package org.webtrade.strategy1.client.screen;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -17,6 +17,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
@@ -32,8 +35,10 @@ import org.webtrade.strategy1.client.ClientState;
 import org.webtrade.strategy1.client.Keys;
 import org.webtrade.strategy1.client.Rts;
 import org.webtrade.strategy1.client.StrategyHud;
+import org.webtrade.strategy1.client.ui.IconButton;
+import org.webtrade.strategy1.client.ui.Palette;
 import org.webtrade.strategy1.client.ui.Ui;
-import org.webtrade.strategy1.client.ui.UiButton;
+import org.webtrade.strategy1.entity.PeasantEntity;
 import org.webtrade.strategy1.entity.ShipEntity;
 import org.webtrade.strategy1.entity.SiegeEntity;
 import org.webtrade.strategy1.entity.SoldierEntity;
@@ -53,23 +58,41 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The strategist's screen, over the world seen from the camera; the mouse is free.
+ * The strategist's screen, over the world seen from the camera; the mouse is free. Everything is in pictures: the
+ * treasury and the people along the top; at the bottom the tabs (farming and trades, the army's buildings, defences,
+ * roads, raising soldiers), what they hold, the chosen units or building and their orders, and on the right a box
+ * telling what the picture under the mouse is (its name, its cost in pictures, one line of what it does).
  * <ul>
  * <li>Left click or drag a box: choose units (Shift adds); click a building: choose it.</li>
- * <li>Right click: the chosen units go there. On an enemy: attack it; on an enemy building: break it (siege engines
- * throw stones at it); on your ship: soldiers go aboard; on your tower or wall: archers man it. A ship sent onto
- * the land sails to the shore there and puts her soldiers ashore.</li>
- * <li>The Build tab: choose what to build, then click where (walls and paths: their two ends; R turns a building).</li>
- * <li>A chosen barracks raises soldiers, a workshop siege engines, a port ships; a tower or a wall lets its archers down.</li>
+ * <li>Right click: the chosen units go there; on an enemy: attack; on an enemy building: break it; on your ship:
+ * board her; on your tower or wall: archers man it. A ship sent onto the land puts her soldiers ashore there.</li>
  * </ul>
  */
 public class RtsScreen extends Screen {
 
-    private static final int BAR = 62;
+    private static final int BAR = 58, TOP = 22, ICON = 22, INFO = 196;
+
+    private enum Tab {
+        ECONOMY(StructureType.Category.ECONOMY, Items.WHEAT), MILITARY(StructureType.Category.MILITARY, Items.IRON_SWORD),
+        DEFENCE(StructureType.Category.DEFENCE, Items.STONE_BRICK_WALL), ROADS(StructureType.Category.ROADS, Items.DIRT_PATH), ARMY(null, Items.SHIELD);
+
+        final StructureType.Category category;
+        final Item icon;
+
+        Tab(StructureType.Category category, Item icon) {
+            this.category = category;
+            this.icon = icon;
+        }
+
+        String key() {
+            return "strategy1.tab2." + name().toLowerCase(java.util.Locale.ROOT);
+        }
+    }
+
     /** The chosen units (entity ids) and the chosen structure; kept while the screen comes and goes. */
     private static final Set<Integer> SELECTED = new HashSet<>();
     private static int structure = -1;
-    private static boolean buildTab;
+    private static Tab tab = Tab.ECONOMY;
     /** Being placed: what, which way (quarter turns), the first end of a line. */
     private static StructureType placing;
     private static int turn;
@@ -77,7 +100,7 @@ public class RtsScreen extends Screen {
 
     private double pressX, pressY;
     private boolean boxing;
-    private int seenRevision = -1, seenStructures = -1;
+    private int seenRevision = -1, seenStructures = -1, seenSelection = -1;
     private static final DustParticleOptions GO = new DustParticleOptions(0xFF60FF60, 1.6F);
     private static final DustParticleOptions HIT = new DustParticleOptions(0xFFFF3030, 1.8F);
 
@@ -116,44 +139,85 @@ public class RtsScreen extends Screen {
     }
 
     public static void showBuild(boolean on) {
-        buildTab = on;
+        tab = on ? Tab.ECONOMY : Tab.ARMY;
+    }
+
+    public static void showTab(int i) {
+        tab = Tab.values()[Math.floorMod(i, Tab.values().length)];
+    }
+
+    // ------------------------------------------------------------------ the pictures
+
+    private static Item unitIcon(UnitType u) {
+        return switch (u) {
+            case MILITIA -> Items.STONE_SWORD;
+            case ARCHER -> Items.BOW;
+            case SWORDSMAN -> Items.IRON_SWORD;
+            case KNIGHT -> Items.DIAMOND_SWORD;
+            case GUARD -> Items.NETHERITE_SWORD;
+        };
+    }
+
+    private static Item icon(Entity e) {
+        if (e instanceof SoldierEntity s) return unitIcon(s.unit());
+        if (e instanceof SiegeEntity g) return g.kind() == SiegeEntity.Kind.TREBUCHET ? Items.DISPENSER : Items.CROSSBOW;
+        if (e instanceof ShipEntity sh) return sh.kind() == ShipEntity.Kind.WARSHIP ? Items.DARK_OAK_BOAT : Items.OAK_BOAT;
+        if (e instanceof PeasantEntity) return Items.WOODEN_HOE;
+        return Items.BARRIER;
+    }
+
+    private static String kindKey(Entity e) {
+        if (e instanceof SoldierEntity s) return s.unit().key();
+        if (e instanceof SiegeEntity g) return g.kind().key();
+        if (e instanceof ShipEntity sh) return sh.kind().key();
+        if (e instanceof PeasantEntity) return "strategy1.unit.peasant";
+        return "?";
     }
 
     // ------------------------------------------------------------------ layout
 
-    private int structuresSig() {
-        int h = ClientState.STRUCTURES.size();
+    private int sig() {
+        int h = ClientState.STRUCTURES.size() * 7 + SELECTED.hashCode() * 31;
         Payloads.StructureInfo s = ClientState.STRUCTURES.get(structure);
         if (s != null) h = h * 31 + (s.built() >= 100 ? 7 : 0) + s.archers() * 131 + s.owner() * 1009;
+        for (Payloads.StructureInfo i : ClientState.STRUCTURES.values()) if (i.owner() == ClientState.me() && i.built() >= 100) h += i.type() * 17 + 1;
+        Payloads.Hud hud = ClientState.hud;
+        if (hud != null) h += (hud.idle() > 0 ? 3 : 0);
         return h;
+    }
+
+    private int x0() {
+        return 6 + Tab.values().length * (ICON + 2) + 8;
     }
 
     @Override
     protected void init() {
         seenRevision = ClientState.revision;
-        seenStructures = structuresSig();
-        int y = height - BAR + 18;
+        seenStructures = sig();
+        int y = height - BAR + 8;
+        // the tabs
         int x = 6;
-        addRenderableWidget(UiButton.make(Component.translatable("strategy1.rts.hold"), b -> order(Payloads.UnitOrder.HOLD, null, -1))
-                .bounds(x, y, 70, 16).tooltip(Tooltip.create(Component.translatable("strategy1.rts.hold_tip"))).build());
-        addRenderableWidget(UiButton.make(Component.translatable("strategy1.rts.all"), b -> selectAll())
-                .bounds(x + 72, y, 70, 16).tooltip(Tooltip.create(Component.translatable("strategy1.rts.all_tip"))).build());
-        addRenderableWidget(UiButton.make(Component.translatable("strategy1.rts.map"), b -> openMap()).bounds(x + 144, y, 56, 16).build());
-        addRenderableWidget(UiButton.make(Component.translatable(buildTab ? "strategy1.rts.tab_army" : "strategy1.rts.tab_build"), b -> {
-            buildTab = !buildTab;
-            placing = null;
-            lineStart = null;
-            structure = -1;
-            rebuildWidgets();
-        }).bounds(x + 202, y, 76, 16).build());
-        addRenderableWidget(UiButton.make(Component.translatable("strategy1.rts.leave"), b -> Rts.exit(minecraft))
-                .bounds(width - 64, 4, 60, 14).tooltip(Tooltip.create(Component.translatable("strategy1.rts.leave_tip"))).build());
-        int row = height - BAR + 38;
+        for (Tab t : Tab.values()) {
+            addRenderableWidget(new IconButton(x, y, ICON, t.icon, new IconButton.Info(Component.translatable(t.key()), null, null), b -> {
+                tab = t;
+                placing = null;
+                lineStart = null;
+                structure = -1;
+                rebuildWidgets();
+            }).chosen(tab == t && structure < 0 && SELECTED.isEmpty()));
+            x += ICON + 2;
+        }
+        // the corner: the map, the way out
+        addRenderableWidget(new IconButton(width - 2 * (ICON + 2) - 2, 1, ICON - 2, Items.FILLED_MAP,
+                new IconButton.Info(Component.translatable("strategy1.rts.map"), null, null), b -> openMap()));
+        addRenderableWidget(new IconButton(width - (ICON + 2) - 2, 1, ICON - 2, Items.OAK_DOOR,
+                new IconButton.Info(Component.translatable("strategy1.rts.leave"), null, Component.translatable("strategy1.rts.leave_tip")), b -> Rts.exit(minecraft)));
         var me = ClientState.mine();
         Payloads.StructureInfo st = ClientState.STRUCTURES.get(structure);
-        if (st != null && me != null && st.owner() == me.id()) structureButtons(st, me, row);
-        else if (buildTab) buildButtons(me, row);
-        else recruitButtons(me, row, -1);
+        if (st != null && me != null && st.owner() == me.id()) structurePanel(st, me);
+        else if (!SELECTED.isEmpty()) unitPanel();
+        else if (tab == Tab.ARMY) recruitPanel(me, -1);
+        else buildPanel(me);
     }
 
     private static boolean canPay(Payloads.FactionInfo f, int[] cost) {
@@ -162,103 +226,118 @@ public class RtsScreen extends Screen {
         return true;
     }
 
-    private static Component costLine(int[] c) {
-        MutableComponent m = Component.empty();
-        boolean first = true;
-        for (int i = 0; i < Res.COUNT; i++) {
-            if (c[i] == 0) continue;
-            if (!first) m.append(", ");
-            m.append(Component.translatable(Res.values()[i].key())).append(" " + c[i]);
-            first = false;
-        }
-        return first ? Component.literal("—") : m;
+    private static boolean have(StructureType t) {
+        if (t == null) return true;
+        for (Payloads.StructureInfo s : ClientState.STRUCTURES.values()) if (s.owner() == ClientState.me() && s.type() == t.ordinal() && s.built() >= 100) return true;
+        return false;
     }
 
-    /** Raise soldiers (at the chosen barracks, or wherever the camera is). */
-    private void recruitButtons(Payloads.FactionInfo me, int y, int barracks) {
-        UnitType[] units = UnitType.values();
-        int bw = Math.min(90, (width - 12) / units.length - 2), bx = 6;
-        for (int i = 0; i < units.length; i++) {
-            UnitType u = units[i];
-            boolean ok = me != null && u.age <= me.age() && me.army() < Rules.maxArmy(me.age()) && canPay(me, u.cost);
-            Component tip = Component.translatable("strategy1.rts.recruit_tip", Component.translatable(u.key()), costLine(u.cost), (int) u.health,
-                    (int) u.damage, Component.translatable("strategy1.age." + u.age));
-            UiButton b = addRenderableWidget(UiButton.make(Component.literal((i + 1) + ". ").append(Component.translatable(u.key())), x0 -> {
-                if (barracks >= 0) structureAction(barracks, Payloads.StructureAction.MAKE, u.ordinal());
-                else recruit(u);
-            }).bounds(bx + i * (bw + 2), y, bw, 16).tooltip(Tooltip.create(tip)).build());
-            b.active = ok;
-        }
+    private IconButton add(int i, Item icon, IconButton.Info info, boolean active, Runnable run) {
+        IconButton b = addRenderableWidget(new IconButton(x0() + i * (ICON + 2), height - BAR + 8, ICON, icon, info, x -> run.run()));
+        b.active = active;
+        return b;
     }
 
-    private void buildButtons(Payloads.FactionInfo me, int y) {
-        StructureType[] types = StructureType.values();
-        int bw = Math.max(40, (width - 12) / types.length - 2);
-        for (int i = 0; i < types.length; i++) {
-            StructureType t = types[i];
-            boolean ok = me != null && t.age <= me.age();
-            Component tip = Component.translatable("strategy1.rts.build_tip", Component.translatable(t.key()),
-                    Component.translatable(t.key() + ".info"), costLine(t.cost), Component.translatable("strategy1.age." + t.age),
-                    Component.translatable(t.line ? "strategy1.rts.per_block" : "strategy1.rts.once"));
-            UiButton b = addRenderableWidget(UiButton.make(Component.translatable(t.key() + ".short"), x0 -> {
+    private void buildPanel(Payloads.FactionInfo me) {
+        int i = 0;
+        for (StructureType t : StructureType.values()) {
+            if (t.category != tab.category) continue;
+            boolean ok = me != null && have(t.requires);
+            Component line = ok ? Component.translatable(t.key() + ".info")
+                    : Component.translatable("strategy1.rts.needs", Component.translatable(t.requires.key()));
+            add(i++, t.icon, new IconButton.Info(Component.translatable(t.key()), t.cost, line), ok, () -> {
                 placing = t;
                 lineStart = null;
                 structure = -1;
                 rebuildWidgets();
-            }).bounds(6 + i * (bw + 2), y, bw, 16).tooltip(Tooltip.create(tip)).style(placing == t ? UiButton.Style.TAB_OPEN : UiButton.Style.PLANK).build());
-            b.active = ok;
+            }).chosen(placing == t);
         }
     }
 
-    private void structureButtons(Payloads.StructureInfo st, Payloads.FactionInfo me, int y) {
+    /** Raise soldiers (at the chosen barracks, or wherever the camera is). */
+    private void recruitPanel(Payloads.FactionInfo me, int barracks) {
+        Payloads.Hud hud = ClientState.hud;
+        boolean hands = hud != null && hud.idle() > 0;
+        int i = 0;
+        for (UnitType u : UnitType.values()) {
+            boolean built = have(u.requires);
+            Component line = !built ? Component.translatable("strategy1.rts.needs", Component.translatable(u.requires.key()))
+                    : !hands ? Component.translatable("strategy1.err.no_peasants")
+                    : Component.literal("❤ " + (int) u.health + "   ⚔ " + (int) u.damage + (u.ranged ? "   ➶" : ""));
+            add(i++, unitIcon(u), new IconButton.Info(Component.translatable(u.key()), u.cost, line), me != null && built && hands && canPay(me, u.cost), () -> {
+                if (barracks >= 0) structureAction(barracks, Payloads.StructureAction.MAKE, u.ordinal());
+                else recruit(u);
+            });
+        }
+    }
+
+    private void unitPanel() {
+        Map<String, List<Integer>> kinds = new LinkedHashMap<>();
+        Map<String, Item> icons = new LinkedHashMap<>();
+        for (int id : SELECTED) {
+            Entity e = minecraft.level.getEntity(id);
+            if (e == null) continue;
+            String k = kindKey(e);
+            kinds.computeIfAbsent(k, x -> new ArrayList<>()).add(id);
+            icons.put(k, icon(e));
+        }
+        int i = 0;
+        add(i++, Items.SHIELD, new IconButton.Info(Component.translatable("strategy1.rts.hold"), null, Component.translatable("strategy1.rts.hold_tip")), true,
+                () -> order(Payloads.UnitOrder.HOLD, null, -1));
+        i++;
+        for (Map.Entry<String, List<Integer>> e : kinds.entrySet()) {
+            List<Integer> ids = e.getValue();
+            add(i++, icons.get(e.getKey()), new IconButton.Info(Component.translatable(e.getKey()), null, Component.translatable("strategy1.rts.only")), true, () -> {
+                SELECTED.clear();
+                SELECTED.addAll(ids);
+                rebuildWidgets();
+            }).count(ids.size());
+        }
+    }
+
+    private void structurePanel(Payloads.StructureInfo st, Payloads.FactionInfo me) {
         StructureType t = StructureType.of(st.type());
-        int x = 6;
         boolean built = st.built() >= 100;
+        int i = 0;
         switch (t) {
-            case BARRACKS -> {
-                recruitButtons(me, y, st.id());
-                return;
+            case BARRACKS, KEEP -> {
+                recruitPanel(me, t == StructureType.BARRACKS ? st.id() : -1);
+                i = UnitType.values().length;
             }
             case WORKSHOP -> {
-                x = make(x, y, Component.translatable("strategy1.siege.catapult"), Payloads.StructureAction.CATAPULT, st, built && me.age() >= 2,
-                        Rules.CATAPULT_COST, 2);
-                x = make(x, y, Component.translatable("strategy1.siege.trebuchet"), Payloads.StructureAction.TREBUCHET, st, built && me.age() >= 3,
-                        Rules.TREBUCHET_COST, 3);
+                add(i++, Items.CROSSBOW, new IconButton.Info(Component.translatable("strategy1.siege.catapult"), Rules.CATAPULT_COST,
+                        Component.translatable("strategy1.siege.catapult.info")), built && canPay(me, Rules.CATAPULT_COST),
+                        () -> structureAction(st.id(), Payloads.StructureAction.MAKE, Payloads.StructureAction.CATAPULT));
+                add(i++, Items.DISPENSER, new IconButton.Info(Component.translatable("strategy1.siege.trebuchet"), Rules.TREBUCHET_COST,
+                        Component.translatable("strategy1.siege.trebuchet.info")), built && canPay(me, Rules.TREBUCHET_COST),
+                        () -> structureAction(st.id(), Payloads.StructureAction.MAKE, Payloads.StructureAction.TREBUCHET));
             }
             case PORT -> {
-                x = make(x, y, Component.translatable("strategy1.ship.transport"), Payloads.StructureAction.TRANSPORT, st, built, Rules.TRANSPORT_COST, 1);
-                x = make(x, y, Component.translatable("strategy1.ship.warship"), Payloads.StructureAction.WARSHIP, st, built && me.age() >= 2,
-                        Rules.WARSHIP_COST, 2);
+                add(i++, Items.OAK_BOAT, new IconButton.Info(Component.translatable("strategy1.ship.transport"), Rules.TRANSPORT_COST,
+                        Component.translatable("strategy1.ship.transport.info")), built && canPay(me, Rules.TRANSPORT_COST),
+                        () -> structureAction(st.id(), Payloads.StructureAction.MAKE, Payloads.StructureAction.TRANSPORT));
+                add(i++, Items.DARK_OAK_BOAT, new IconButton.Info(Component.translatable("strategy1.ship.warship"), Rules.WARSHIP_COST,
+                        Component.translatable("strategy1.ship.warship.info")), built && canPay(me, Rules.WARSHIP_COST),
+                        () -> structureAction(st.id(), Payloads.StructureAction.MAKE, Payloads.StructureAction.WARSHIP));
             }
             default -> {
             }
         }
         if (t.manned()) {
-            UiButton b = addRenderableWidget(UiButton.make(Component.translatable("strategy1.rts.unman"),
-                    x0 -> structureAction(st.id(), Payloads.StructureAction.UNMAN, 0)).bounds(x, y, 110, 16)
-                    .tooltip(Tooltip.create(Component.translatable("strategy1.rts.unman_tip"))).build());
-            b.active = st.archers() > 0;
+            add(i++, Items.ARROW, new IconButton.Info(Component.translatable("strategy1.rts.unman"), null, Component.translatable("strategy1.rts.unman_tip")),
+                    st.archers() > 0, () -> structureAction(st.id(), Payloads.StructureAction.UNMAN, 0)).count(st.archers());
         }
-        addRenderableWidget(UiButton.make(Component.translatable("strategy1.rts.demolish"),
-                x0 -> structureAction(st.id(), Payloads.StructureAction.DEMOLISH, 0)).bounds(width - 96, y, 90, 16).build());
-    }
-
-    private int make(int x, int y, Component name, int what, Payloads.StructureInfo st, boolean ok, int[] cost, int age) {
-        Component tip = Component.translatable("strategy1.rts.make_tip", name, costLine(cost), Component.translatable("strategy1.age." + age));
-        UiButton b = addRenderableWidget(UiButton.make(name, x0 -> structureAction(st.id(), Payloads.StructureAction.MAKE, what))
-                .bounds(x, y, 110, 16).tooltip(Tooltip.create(tip)).build());
-        b.active = ok && canPay(ClientState.mine(), cost);
-        return x + 112;
+        if (t != StructureType.KEEP) {
+            add(i + 1, Items.TNT, new IconButton.Info(Component.translatable("strategy1.rts.demolish"), null, null), true,
+                    () -> structureAction(st.id(), Payloads.StructureAction.DEMOLISH, 0));
+        }
     }
 
     @Override
     public void tick() {
-        if (ClientState.revision != seenRevision || structuresSig() != seenStructures) rebuildWidgets();
         SELECTED.removeIf(id -> !(minecraft.level.getEntity(id) instanceof UnitEntity u) || !u.isAlive());
-        if (structure >= 0 && !ClientState.STRUCTURES.containsKey(structure)) {
-            structure = -1;
-            rebuildWidgets();
-        }
+        if (structure >= 0 && !ClientState.STRUCTURES.containsKey(structure)) structure = -1;
+        if (ClientState.revision != seenRevision || sig() != seenStructures) rebuildWidgets();
     }
 
     // ------------------------------------------------------------------ the world under the mouse
@@ -267,7 +346,6 @@ public class RtsScreen extends Screen {
         return (height / 2.0) / Math.tan(Math.toRadians(minecraft.gameRenderer.mainCamera().getFov()) / 2);
     }
 
-    /** The way from the camera through a point of the screen. */
     private Vec3 ray(double sx, double sy) {
         var cam = minecraft.gameRenderer.mainCamera();
         double f = focal();
@@ -300,7 +378,7 @@ public class RtsScreen extends Screen {
         if (block.getType() != HitResult.Type.MISS) {
             Vec3 c = Vec3.atCenterOf(block.getBlockPos());
             for (Payloads.StructureInfo s : ClientState.STRUCTURES.values()) {
-                if (s.type() == StructureType.PATH.ordinal()) continue;
+                if (s.type() == StructureType.PATH.ordinal() || s.type() == StructureType.BRIDGE.ordinal()) continue;
                 if (s.aabb().inflate(0.3).contains(c)) st = s;
             }
         }
@@ -309,7 +387,7 @@ public class RtsScreen extends Screen {
     }
 
     private boolean mine(Entity e) {
-        return e instanceof UnitEntity u && u.faction() == ClientState.me() && u.isAlive();
+        return e instanceof UnitEntity u && u.faction() == ClientState.me() && u.isAlive() && !(e instanceof PeasantEntity);
     }
 
     private boolean enemy(Entity e) {
@@ -412,7 +490,7 @@ public class RtsScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (super.mouseClicked(event, doubleClick)) return true;
-        if (event.y() > height - BAR) return false;
+        if (event.y() > height - BAR || event.y() < TOP) return false;
         if (placing != null) {
             if (event.button() == 1) {
                 placing = null;
@@ -427,7 +505,6 @@ public class RtsScreen extends Screen {
                 if (lineStart == null) lineStart = at;
                 else {
                     send(placing, lineStart, at);
-                    // (the next length goes on from the end of this one)
                     lineStart = at;
                 }
             } else {
@@ -463,28 +540,24 @@ public class RtsScreen extends Screen {
         if (boxing && event.button() == 0) {
             boxing = false;
             boolean add = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
-            int before = structure;
             if (!add) SELECTED.clear();
             double x0 = Math.min(pressX, event.x()), x1 = Math.max(pressX, event.x());
             double y0 = Math.min(pressY, event.y()), y1 = Math.max(pressY, event.y());
+            structure = -1;
             if (x1 - x0 < 4 && y1 - y0 < 4) {
                 Pick p = pick(event.x(), event.y());
-                structure = -1;
                 if (mine(p.entity)) {
                     if (add && SELECTED.contains(p.entity.getId())) SELECTED.remove(p.entity.getId());
                     else SELECTED.add(p.entity.getId());
-                } else if (p.structure != null && !add) {
-                    structure = p.structure.id();
-                }
+                } else if (p.structure != null && !add) structure = p.structure.id();
             } else {
-                structure = -1;
                 for (UnitEntity s : unitsNear()) {
                     if (!mine(s) || s.isPassenger()) continue;
                     Vec3 sp = project(s.position().add(0, 1, 0));
                     if (sp != null && sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) SELECTED.add(s.getId());
                 }
             }
-            if (structure != before) rebuildWidgets();
+            rebuildWidgets();
             return true;
         }
         return super.mouseReleased(event);
@@ -501,10 +574,11 @@ public class RtsScreen extends Screen {
         int k = event.key();
         boolean ctrl = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
         if (k == GLFW.GLFW_KEY_ESCAPE) {
-            if (placing != null || structure >= 0) {
+            if (placing != null || structure >= 0 || !SELECTED.isEmpty()) {
                 placing = null;
                 lineStart = null;
                 structure = -1;
+                SELECTED.clear();
                 rebuildWidgets();
                 return true;
             }
@@ -528,24 +602,16 @@ public class RtsScreen extends Screen {
             return true;
         }
         if (k == GLFW.GLFW_KEY_TAB) {
-            buildTab = !buildTab;
+            tab = Tab.values()[(tab.ordinal() + 1) % Tab.values().length];
             placing = null;
             lineStart = null;
+            structure = -1;
+            SELECTED.clear();
             rebuildWidgets();
             return true;
         }
         if (k == GLFW.GLFW_KEY_H || k == GLFW.GLFW_KEY_SPACE) {
             order(Payloads.UnitOrder.HOLD, null, -1);
-            return true;
-        }
-        if (k >= GLFW.GLFW_KEY_1 && k <= GLFW.GLFW_KEY_5 && !buildTab) {
-            UnitType u = UnitType.of(k - GLFW.GLFW_KEY_1);
-            var me = ClientState.mine();
-            Payloads.StructureInfo st = ClientState.STRUCTURES.get(structure);
-            if (me != null && u.age <= me.age()) {
-                if (st != null && st.type() == StructureType.BARRACKS.ordinal()) structureAction(st.id(), Payloads.StructureAction.MAKE, u.ordinal());
-                else recruit(u);
-            }
             return true;
         }
         if (minecraft.options.keyChat.matches(event) || k == GLFW.GLFW_KEY_ENTER) {
@@ -575,7 +641,6 @@ public class RtsScreen extends Screen {
         structures(g);
         units(g);
         captures(g);
-        StrategyHud.treasury(minecraft, g, 4, 4);
         if (placing != null) preview(g, mx, my);
         else hovered(g, mx, my);
         if (boxing && (Math.abs(mx - pressX) > 3 || Math.abs(my - pressY) > 3)) {
@@ -583,8 +648,97 @@ public class RtsScreen extends Screen {
             g.fill(x0, y0, x1, y1, 0x2060FF60);
             g.outline(x0, y0, x1 - x0, y1 - y0, 0xFF60FF60);
         }
-        bottom(g);
+        top(g);
+        g.fill(0, height - BAR, width, height, 0xC0201810);
+        g.fill(0, height - BAR, width, height - BAR + 1, Palette.BRASS_DARK);
+        g.fill(x0() - 5, height - BAR + 6, x0() - 4, height - 6, Palette.BRASS_DARK);
         super.extractRenderState(g, mx, my, partialTick);
+        info(g, mx, my);
+    }
+
+    /** The treasury and the people, in pictures, along the top. */
+    private void top(GuiGraphicsExtractor g) {
+        g.fill(0, 0, width, TOP, 0xC0201810);
+        g.fill(0, TOP, width, TOP + 1, Palette.BRASS_DARK);
+        var me = ClientState.mine();
+        if (me == null) return;
+        int x = 4;
+        for (int i = 0; i < Res.COUNT; i++) x = stat(g, x, StrategyHud.icon(i), String.valueOf(me.res()[i]), 0xFFFFFFFF);
+        x += 8;
+        Payloads.Hud hud = ClientState.hud;
+        if (hud != null) {
+            x = stat(g, x, new ItemStack(Items.PLAYER_HEAD), (hud.peasants() + hud.army()) + "/" + hud.armyMax(), 0xFFFFE0A0);
+            x = stat(g, x, new ItemStack(Items.WOODEN_HOE), String.valueOf(hud.idle()), hud.idle() > 0 ? 0xFFA0FFA0 : 0xFFC0C0C0);
+            x = stat(g, x, new ItemStack(Items.IRON_SWORD), String.valueOf(hud.army()), 0xFFFFFFFF);
+            int t = hud.turnLeft();
+            x = stat(g, x, new ItemStack(Items.CLOCK), t / 60 + ":" + (t % 60 < 10 ? "0" : "") + t % 60, 0xFFC0C0C0);
+        }
+        // where the camera is, small, on the right
+        Payloads.ProvinceInfo here = ClientState.province(Hex.at(Rts.focusX, Rts.focusZ));
+        if (here != null) {
+            Component c = Component.literal(here.name() + " · ").append(Terrain.of(here.terrain()).land() ? ClientState.name(here.owner())
+                    : Component.translatable("strategy1.owner.sea"));
+            int w = font.width(c);
+            int rx = width - 2 * (ICON + 2) - 8 - w;
+            if (rx > x + 8) g.text(font, c, rx, 7, 0xFFFFFFFF, true);
+        }
+    }
+
+    private int stat(GuiGraphicsExtractor g, int x, ItemStack icon, String value, int color) {
+        g.item(icon, x, 3);
+        g.text(font, value, x + 18, 7, color, true);
+        return x + 22 + font.width(value) + 6;
+    }
+
+    /** The box on the right of the bottom panel: what is under the mouse (else what is chosen). */
+    private void info(GuiGraphicsExtractor g, int mx, int my) {
+        int x0 = width - INFO - 4, y0 = height - BAR + 5, x1 = width - 4, y1 = height - 5;
+        Ui.inset(g, x0, y0, x1, y1);
+        IconButton hover = null;
+        for (GuiEventListener c : children()) if (c instanceof IconButton b && b.isHovered() && b.info != null) hover = b;
+        Component name = null, line = null;
+        int[] cost = null;
+        if (hover != null) {
+            name = hover.info.name();
+            cost = hover.info.cost();
+            line = hover.info.line();
+        } else if (placing != null) {
+            name = Component.translatable(placing.key());
+            cost = placing.cost;
+            line = Component.translatable(placing.line ? "strategy1.rts.help_line" : "strategy1.rts.help_place");
+        } else if (ClientState.STRUCTURES.get(structure) != null) {
+            Payloads.StructureInfo s = ClientState.STRUCTURES.get(structure);
+            name = Component.translatable(StructureType.of(s.type()).key()).append(" · ").append(ClientState.name(s.owner()));
+            line = s.built() < 100 ? Component.translatable("strategy1.rts.building", s.built())
+                    : Component.literal("❤ " + s.hp() + "/" + s.maxHp() + (s.posts() > 0 ? "   ➶ " + s.archers() + "/" + s.posts() : ""));
+        } else if (!SELECTED.isEmpty()) {
+            name = Component.translatable("strategy1.rts.selected", SELECTED.size());
+            line = Component.translatable("strategy1.rts.orders_tip");
+        } else {
+            name = Component.translatable(tab.key());
+            line = Component.translatable(tab == Tab.ARMY ? "strategy1.rts.army_tip" : "strategy1.rts.build_tip2");
+        }
+        int x = x0 + 5, y = y0 + 4;
+        g.text(font, Ui.fit(font, name.getString(), INFO - 10), x, y, Palette.INK, false);
+        y += 12;
+        if (cost != null) {
+            var me = ClientState.mine();
+            int cx = x;
+            for (int i = 0; i < Res.COUNT; i++) {
+                if (cost[i] == 0) continue;
+                g.pose().pushMatrix();
+                g.pose().translate(cx, y - 2);
+                g.pose().scale(0.75F, 0.75F);
+                g.item(StrategyHud.icon(i), 0, 0);
+                g.pose().popMatrix();
+                String v = String.valueOf(cost[i]);
+                boolean short_ = me == null || me.res()[i] < cost[i];
+                g.text(font, v, cx + 13, y + 1, short_ ? Palette.BAD : Palette.INK_SOFT, false);
+                cx += 16 + font.width(v) + 4;
+            }
+            y += 12;
+        }
+        if (line != null) g.text(font, Ui.fit(font, line.getString(), INFO - 10), x, y, Palette.TEXT_MUTED, false);
     }
 
     private void line(GuiGraphicsExtractor g, Vec3 a, Vec3 b, int color) {
@@ -602,7 +756,7 @@ public class RtsScreen extends Screen {
         g.fill(x - w / 2, y, x - w / 2 + Math.round(w * Mth.clamp(f, 0, 1)), y + 3, 0xFF000000 | color);
     }
 
-    /** Over each structure near: how far built, its strength, the archers on it; the chosen one outlined. */
+    /** Over each structure near: how far built, its strength; the chosen one outlined. */
     private void structures(GuiGraphicsExtractor g) {
         for (Payloads.StructureInfo s : ClientState.STRUCTURES.values()) {
             AABB b = s.aabb();
@@ -625,24 +779,24 @@ public class RtsScreen extends Screen {
             if (s.built() < 100) {
                 if (s.owner() != ClientState.me() && !chosen) continue;
                 bar(g, x, y, 40, s.built() / 100F, 0xE0C040);
-                Ui.centered(g, font, s.built() + "%", x, y - 10, 0xFFFFE070);
             } else if (s.maxHp() > 0 && (s.hp() < s.maxHp() || chosen)) {
                 bar(g, x, y, 40, s.hp() / (float) s.maxHp(), color < 0 ? 0xAAAAAA : color);
-            }
-            if (s.posts() > 0 && s.built() >= 100 && chosen) {
-                Ui.centered(g, font, "↑ " + s.archers() + "/" + s.posts(), x, y - 10, 0xFFFFFFFF);
             }
         }
     }
 
-    /** Over every unit its health, in its realm's colour; the chosen ones framed. */
+    /** Over every unit its health, in its realm's colour; the chosen ones framed; peasants with what they carry. */
     private void units(GuiGraphicsExtractor g) {
         for (UnitEntity s : unitsNear()) {
             Vec3 head = project(s.position().add(0, s.getBbHeight() + 0.35, 0));
             Vec3 feet = project(s.position());
             if (head == null || feet == null || head.z > 160) continue;
             int x = (int) head.x, y = (int) head.y;
-            int h = (int) Math.max(6, feet.y - head.y), w = Math.max(4, (int) (h * (s instanceof SoldierEntity ? 0.55 : 1.3)));
+            int h = (int) Math.max(6, feet.y - head.y), w = Math.max(4, (int) (h * (s instanceof SoldierEntity || s instanceof PeasantEntity ? 0.55 : 1.3)));
+            if (s instanceof PeasantEntity) {
+                if (head.z < 60 && s.getHealth() < s.getMaxHealth()) bar(g, x, y - 4, 14, s.getHealth() / s.getMaxHealth(), s.color());
+                continue;
+            }
             int bw = Mth.clamp(w + 6, 10, s instanceof SoldierEntity ? 30 : 60);
             float hp = s.getHealth() / s.getMaxHealth();
             g.fill(x - bw / 2 - 1, y - 4, x + bw / 2 + 1, y, 0xC0000000);
@@ -672,37 +826,35 @@ public class RtsScreen extends Screen {
         for (int i = 0; i < hud.keys().length; i++) {
             Hex h = Hex.of(hud.keys()[i]);
             int y = minecraft.level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) h.centerX(), (int) h.centerZ());
-            Vec3 at = project(new Vec3(h.centerX(), y + 8, h.centerZ()));
+            Vec3 at = project(new Vec3(h.centerX(), y + 12, h.centerZ()));
             if (at == null) continue;
             int color = ClientState.color(hud.by()[i]);
-            Payloads.ProvinceInfo p = ClientState.PROVINCES.get(hud.keys()[i]);
-            Component t = Component.translatable("strategy1.hud.capturing", ClientState.name(hud.by()[i]), p == null ? "?" : p.name());
             int x = (int) at.x, ty = (int) at.y;
-            g.text(font, t, x - font.width(t) / 2, ty - 12, 0xFFFFFFFF, true);
-            bar(g, x, ty, 90, hud.progress()[i] / (float) Rules.CAPTURE, color < 0 ? 0xFFFFFF : color);
+            g.item(new ItemStack(Items.BELL), x - 8, ty - 18);
+            bar(g, x, ty, 60, hud.progress()[i] / (float) Rules.CAPTURE, color < 0 ? 0xFFFFFF : color);
         }
     }
 
     /** Where what is being placed would stand, outlined on the ground (green on your land, red elsewhere). */
     private void preview(GuiGraphicsExtractor g, int mx, int my) {
-        if (my > height - BAR) return;
+        if (my > height - BAR || my < TOP) return;
         Pick p = pick(mx, my);
         if (p.block == null) return;
         BlockPos at = p.block.above();
-        var me = ClientState.mine();
-        Component label;
         int[] cost = placing.cost;
         if (placing.line) {
             BlockPos a = lineStart == null ? at : lineStart;
             boolean own = owns(a.getX(), a.getZ()) && owns(at.getX(), at.getZ());
             int col = own ? 0xFF60FF60 : 0xFFFF5040;
             int len = (int) Math.round(Math.hypot(at.getX() - a.getX(), at.getZ() - a.getZ())) + 1;
-            double h = placing == StructureType.PATH ? 0.2 : placing == StructureType.WALL_STONE ? 5 : 4;
+            double h = placing == StructureType.PATH || placing == StructureType.BRIDGE ? 0.2 : placing == StructureType.WALL_STONE ? 5 : 4;
             line(g, Vec3.atBottomCenterOf(a), Vec3.atBottomCenterOf(at), col);
             line(g, Vec3.atBottomCenterOf(a).add(0, h, 0), Vec3.atBottomCenterOf(at).add(0, h, 0), col);
             cost = placing.cost(len);
-            label = lineStart == null ? Component.translatable("strategy1.rts.line_start", Component.translatable(placing.key()))
-                    : Component.translatable("strategy1.rts.line_end", Component.translatable(placing.key()), len, costLine(cost));
+            if (lineStart != null) {
+                Vec3 mid = project(Vec3.atBottomCenterOf(a).lerp(Vec3.atBottomCenterOf(at), 0.5).add(0, h + 1, 0));
+                if (mid != null) Ui.centered(g, font, String.valueOf(len), (int) mid.x, (int) mid.y, 0xFFFFFFFF);
+            }
         } else {
             int r = rotation();
             double[][] c = {{placing.x0, placing.z0}, {placing.x1 + 1, placing.z0}, {placing.x1 + 1, placing.z1 + 1}, {placing.x0, placing.z1 + 1}};
@@ -710,7 +862,6 @@ public class RtsScreen extends Screen {
             boolean own = true;
             for (int i = 0; i < 4; i++) {
                 double x = c[i][0], z = c[i][1];
-                // (the corners of the blocks, turned as the server turns them round the origin block)
                 double rx = switch (r) {
                     case 1 -> -z + 1;
                     case 2 -> -x + 1;
@@ -730,14 +881,17 @@ public class RtsScreen extends Screen {
                 line(g, w[i], w[(i + 1) % 4], col);
                 line(g, w[i], w[i].add(0, 3, 0), col);
             }
-            // the door's side
             line(g, w[0].lerp(w[1], 0.35).add(0, 0.1, 0), w[0].lerp(w[1], 0.65).add(0, 0.1, 0), 0xFFFFFFFF);
-            label = Component.translatable("strategy1.rts.place", Component.translatable(placing.key()), costLine(cost));
         }
-        int tw = font.width(label) + 8;
-        int x = Math.min(mx + 12, width - tw - 2), y = my + 14;
-        g.fill(x, y, x + tw, y + 13, 0xC0201810);
-        g.text(font, label, x + 4, y + 3, canPay(me, cost) ? 0xFFFFFFFF : 0xFFFF8070, true);
+        // the cost by the cursor, in pictures
+        var me = ClientState.mine();
+        int cx = mx + 12, cy = my + 12;
+        for (int i = 0; i < Res.COUNT; i++) {
+            if (cost[i] == 0) continue;
+            g.item(StrategyHud.icon(i), cx, cy);
+            g.text(font, String.valueOf(cost[i]), cx + 16, cy + 5, me != null && me.res()[i] >= cost[i] ? 0xFFFFFFFF : 0xFFFF7060, true);
+            cx += 22 + font.width(String.valueOf(cost[i]));
+        }
     }
 
     private boolean owns(double x, double z) {
@@ -745,72 +899,27 @@ public class RtsScreen extends Screen {
         return q != null && q.owner() == ClientState.me();
     }
 
-    /** What is under the mouse, by it. */
+    /** A unit or building under the mouse: its picture and health by it. */
     private void hovered(GuiGraphicsExtractor g, int mx, int my) {
-        if (boxing || my > height - BAR) return;
+        if (boxing || my > height - BAR || my < TOP) return;
         Pick p = pick(mx, my);
-        Component line;
+        ItemStack icon;
+        String text;
+        int color;
         if (p.entity instanceof UnitEntity s) {
-            line = Component.empty().append(s.getDisplayName()).append(" · ").append(ClientState.name(s.faction()))
-                    .append(" · " + (int) Math.ceil(s.getHealth()) + "/" + (int) s.getMaxHealth());
+            icon = new ItemStack(icon(s));
+            text = (int) Math.ceil(s.getHealth()) + "/" + (int) s.getMaxHealth();
+            color = s.color();
         } else if (p.structure != null) {
-            line = structureLine(p.structure);
-        } else if (p.ground != null) {
-            Payloads.ProvinceInfo q = ClientState.province(Hex.at(p.ground.x, p.ground.z));
-            if (q == null) return;
-            boolean land = Terrain.of(q.terrain()).land();
-            line = Component.literal(q.name() + " · ").append(land ? ClientState.name(q.owner()) : Component.translatable("strategy1.owner.sea"))
-                    .append(land ? Component.literal(" · ").append(Component.translatable("strategy1.hud.garrison", q.garrison())) : Component.empty());
+            icon = new ItemStack(StructureType.of(p.structure.type()).icon);
+            text = p.structure.built() < 100 ? p.structure.built() + "%" : p.structure.maxHp() > 0 ? p.structure.hp() + "/" + p.structure.maxHp() : "";
+            color = ClientState.color(p.structure.owner());
         } else return;
-        int w = font.width(line) + 8;
-        int x = Math.min(mx + 12, width - w - 2), y = my + 14;
-        g.fill(x, y, x + w, y + 13, 0xC0201810);
-        g.text(font, line, x + 4, y + 3, 0xFFFFFFFF, true);
-    }
-
-    private static MutableComponent structureLine(Payloads.StructureInfo s) {
-        MutableComponent c = Component.translatable(StructureType.of(s.type()).key()).append(" · ").append(ClientState.name(s.owner()));
-        if (s.built() < 100) c.append(" · ").append(Component.translatable("strategy1.rts.building", s.built()));
-        else if (s.maxHp() > 0) c.append(" · " + s.hp() + "/" + s.maxHp());
-        if (s.posts() > 0) c.append(" · ").append(Component.translatable("strategy1.rts.archers", s.archers(), s.posts()));
-        return c;
-    }
-
-    private void bottom(GuiGraphicsExtractor g) {
-        g.fill(0, height - BAR, width, height, 0xB0201810);
-        g.fill(0, height - BAR, width, height - BAR + 1, 0xFF8C6F33);
-        int y = height - BAR + 5;
-        Component sel;
-        Payloads.StructureInfo st = ClientState.STRUCTURES.get(structure);
-        if (st != null) sel = structureLine(st);
-        else if (placing != null) sel = Component.translatable(placing.line ? "strategy1.rts.placing_line" : "strategy1.rts.placing", Component.translatable(placing.key()));
-        else {
-            Map<String, Integer> kinds = new LinkedHashMap<>();
-            for (int id : SELECTED) {
-                Entity e = minecraft.level.getEntity(id);
-                String key = e instanceof SoldierEntity s ? s.unit().key() : e instanceof SiegeEntity sg ? sg.kind().key() : e instanceof ShipEntity sh ? sh.kind().key() : null;
-                if (key != null) kinds.merge(key, 1, Integer::sum);
-            }
-            if (kinds.isEmpty()) sel = Component.translatable(buildTab ? "strategy1.rts.build_hint" : "strategy1.rts.none_selected");
-            else {
-                MutableComponent c = Component.translatable("strategy1.rts.selected", SELECTED.size());
-                kinds.forEach((k, n) -> c.append(Component.literal("  " + n + "× ")).append(Component.translatable(k)));
-                sel = c;
-            }
-        }
-        g.text(font, Ui.fit(font, sel.getString(), width - 300), 8, y, 0xFFFFF0C0, true);
-        Payloads.ProvinceInfo here = ClientState.province(Hex.at(Rts.focusX, Rts.focusZ));
-        var me = ClientState.mine();
-        Component where = here != null && me != null && here.owner() == me.id() ? Component.translatable("strategy1.rts.recruit_here", here.name())
-                : Component.translatable("strategy1.rts.recruit_capital");
-        String ws = Ui.fit(font, where.getString(), 280);
-        g.text(font, ws, width - 8 - font.width(ws), y, 0xFFC8C8C8, true);
-        Component help = Component.translatable(placing != null ? "strategy1.rts.help_place" : "strategy1.rts.help");
-        float k = Math.min(0.8F, (width - 8) / (float) font.width(help));
-        g.pose().pushMatrix();
-        g.pose().translate((width - font.width(help) * k) / 2F, height - 7);
-        g.pose().scale(k, k);
-        g.text(font, help, 0, 0, 0xFF9A8A70, false);
-        g.pose().popMatrix();
+        int w = 22 + font.width(text);
+        int x = Math.min(mx + 12, width - w - 2), y = my + 12;
+        g.fill(x - 1, y - 1, x + w + 1, y + 17, 0xFF000000 | (color < 0 ? 0x888888 : color));
+        g.fill(x, y, x + w, y + 16, 0xE0201810);
+        g.item(icon, x, y);
+        g.text(font, text, x + 18, y + 4, 0xFFFFFFFF, true);
     }
 }

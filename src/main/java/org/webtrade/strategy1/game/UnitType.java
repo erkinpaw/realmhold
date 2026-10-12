@@ -2,22 +2,27 @@ package org.webtrade.strategy1.game;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import org.webtrade.strategy1.build.StructureType;
 
-/** The kinds of soldier a realm can raise; better ones come with later ages. */
+/**
+ * The kinds of soldier a realm can raise (each from one of its peasants): the barracks trains militia and archers;
+ * with a blacksmith's forge, swordsmen, knights and guardsmen too.
+ */
 public enum UnitType {
-    MILITIA(1, 20, 3, 0.30, false, Res.of(20, 10, 0, 0, 0)),
-    ARCHER(1, 18, 2, 0.30, true, Res.of(20, 25, 0, 0, 0)),
-    SWORDSMAN(2, 26, 5, 0.30, false, Res.of(30, 5, 0, 15, 0)),
-    KNIGHT(3, 36, 7, 0.34, false, Res.of(40, 0, 0, 30, 10)),
-    GUARD(4, 44, 9, 0.33, false, Res.of(50, 0, 0, 40, 30));
+    MILITIA(StructureType.BARRACKS, 20, 3, 0.30, false, Res.of(10, 10, 0, 0, 0)),
+    ARCHER(StructureType.BARRACKS, 18, 2, 0.30, true, Res.of(10, 25, 0, 0, 0)),
+    SWORDSMAN(StructureType.BLACKSMITH, 26, 5, 0.30, false, Res.of(15, 5, 0, 15, 0)),
+    KNIGHT(StructureType.BLACKSMITH, 36, 7, 0.34, false, Res.of(20, 0, 0, 30, 10)),
+    GUARD(StructureType.BLACKSMITH, 44, 9, 0.33, false, Res.of(25, 0, 0, 40, 30));
 
-    public final int age;
+    /** The building the realm must have to raise them. */
+    public final StructureType requires;
     public final double health, damage, speed;
     public final boolean ranged;
     public final int[] cost;
 
-    UnitType(int age, double health, double damage, double speed, boolean ranged, int[] cost) {
-        this.age = age;
+    UnitType(StructureType requires, double health, double damage, double speed, boolean ranged, int[] cost) {
+        this.requires = requires;
         this.health = health;
         this.damage = damage;
         this.speed = speed;
@@ -39,10 +44,10 @@ public enum UnitType {
         };
     }
 
-    /** The garrison's soldiers: the best melee kind the realm's age allows (and some archers). */
-    public static UnitType garrisonUnit(int age, int index) {
+    /** A garrison's soldiers: the best melee kind the realm's might allows (and some archers). */
+    public static UnitType garrisonUnit(int tier, int index) {
         if (index % 3 == 2) return ARCHER;
-        return switch (Math.max(1, Math.min(age, 4))) {
+        return switch (Math.max(1, Math.min(tier, 4))) {
             case 1 -> MILITIA;
             case 2 -> SWORDSMAN;
             case 3 -> KNIGHT;
