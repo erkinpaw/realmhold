@@ -19,7 +19,8 @@ final class MapTexture {
     static final int BPP = 4;
     static final Identifier ID = Strategy1.id("strategy_map");
     private static DynamicTexture texture;
-    private static int revision = -1;
+    private static int revision = -1, explored = -1;
+    private static long builtAt;
     /** The world's corner of the picture (blocks) and its size (pixels). */
     static int originX, originZ, width, height;
 
@@ -29,12 +30,15 @@ final class MapTexture {
     /** The picture, made again if the map has changed; null with no map. */
     static Identifier get() {
         if (ClientState.PROVINCES.isEmpty()) return null;
-        if (revision != ClientState.revision || texture == null) build();
+        long now = System.currentTimeMillis();
+        if (revision != ClientState.revision || texture == null || explored != org.webtrade.strategy1.client.Explored.revision && now - builtAt > 1500) build();
         return ID;
     }
 
     private static void build() {
         revision = ClientState.revision;
+        explored = org.webtrade.strategy1.client.Explored.revision;
+        builtAt = System.currentTimeMillis();
         double minX = Double.MAX_VALUE, minZ = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
         for (Payloads.ProvinceInfo p : ClientState.PROVINCES.values()) {
             Hex h = Hex.of(p.key());
@@ -70,7 +74,14 @@ final class MapTexture {
                 }
                 Terrain t = Terrain.of(p.terrain());
                 int owner = t.land() ? ClientState.color(p.owner()) : -1;
-                int rgb = owner >= 0 ? mix(t.color, owner, 0.55) : t.land() ? mix(t.color, 0xE4D2A6, 0.25) : t.color;
+                // the land as it was seen, else the sketch of the province under a fog
+                int seen = org.webtrade.strategy1.client.Explored.colour(Math.floorDiv(originX + x * BPP + BPP / 2, BPP), Math.floorDiv(originZ + z * BPP + BPP / 2, BPP));
+                int rgb;
+                if (seen != 0) rgb = owner >= 0 ? mix(seen & 0xFFFFFF, owner, 0.28) : seen & 0xFFFFFF;
+                else {
+                    rgb = owner >= 0 ? mix(t.color, owner, 0.55) : t.land() ? mix(t.color, 0xE4D2A6, 0.25) : t.color;
+                    rgb = mix(rgb, 0xD8C7A0, 0.45);
+                }
                 // edges: the hex's own thin, a realm's border strong
                 boolean edge = false, border = false;
                 for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
