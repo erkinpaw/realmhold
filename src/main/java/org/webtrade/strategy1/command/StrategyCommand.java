@@ -26,6 +26,17 @@ public final class StrategyCommand {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registries, env) -> dispatcher.register(Commands.literal("strategy")
                 .then(Commands.literal("info").executes(ctx -> info(ctx.getSource())))
+                .then(Commands.literal("mode").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("mode", StringArgumentType.word())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(Arrays.stream(org.webtrade.strategy1.game.Mode.values())
+                                        .map(m -> m.name().toLowerCase(Locale.ROOT)), b))
+                                .executes(ctx -> {
+                                    StrategyData d = StrategyManager.data();
+                                    d.mode = org.webtrade.strategy1.game.Mode.valueOf(StringArgumentType.getString(ctx, "mode").toUpperCase(Locale.ROOT));
+                                    d.touch();
+                                    ctx.getSource().sendSuccess(() -> Component.translatable(d.mode.key()), true);
+                                    return 1;
+                                })))
                 .then(Commands.literal("turn").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .executes(ctx -> {
                             StrategyManager.forceTurn();

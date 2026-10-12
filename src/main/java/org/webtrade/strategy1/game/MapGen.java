@@ -35,6 +35,14 @@ public final class MapGen {
     }
 
     public static void generate(ServerLevel level, StrategyData data) {
+        // the way the world was chosen to be played (on this machine's new realm screen)
+        if (Mode.Pending.mode != null) {
+            data.mode = Mode.Pending.mode;
+            data.realms = Mode.Pending.realms >= 0 ? Mode.Pending.realms : data.mode.realms;
+            data.coop = Mode.Pending.coop;
+            Mode.Pending.mode = null;
+            Mode.Pending.realms = -1;
+        }
         BlockPos spawn = level.getRespawnData().pos();
         Hex origin = Hex.at(spawn.getX(), spawn.getZ());
         data.origin = origin.key();
@@ -126,7 +134,7 @@ public final class MapGen {
         candidates.sort(Comparator.comparingInt(p -> -landAround(data, p.hex)));
         List<Province> capitals = new ArrayList<>();
         for (Province p : candidates) {
-            if (capitals.size() >= AI_REALMS) break;
+            if (capitals.size() >= data.realms) break;
             boolean far = true;
             for (Province c : capitals) if (c.hex.distance(p.hex) < 6) far = false;
             if (far) capitals.add(p);
