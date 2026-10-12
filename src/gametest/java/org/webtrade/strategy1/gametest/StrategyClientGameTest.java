@@ -132,14 +132,16 @@ public class StrategyClientGameTest implements FabricClientGameTest {
             double[] port = new double[4];
             server.runOnServer(s -> {
                 build(s, StructureType.FARM, cx - 24, cz - 18, 0, 0, 0);
-                build(s, StructureType.QUARRY, cx - 24, cz - 4, 0, 0, 0);
+                // the quarry by its stone
+                Structure dep = Structures.depositNear(StructureType.DEPOSIT_STONE, new Vec3(cx, 64, cz), 400);
+                boolean quarried = false;
+                if (dep != null) for (int[] o : new int[][]{{8, 0}, {-8, 0}, {0, 8}, {0, -8}, {7, 7}, {-7, -7}, {7, -7}, {-7, 7}}) {
+                    if (!quarried) quarried = build(s, StructureType.QUARRY, dep.origin.getX() + o[0], dep.origin.getZ() + o[1], 0, 0, 0) == null;
+                }
                 build(s, StructureType.BLACKSMITH, cx - 24, cz + 8, 0, 0, 0);
                 build(s, StructureType.BARRACKS, cx - 8, cz - 22, 0, 0, 0);
-                build(s, StructureType.WORKSHOP, cx + 8, cz - 22, 0, 0, 0);
                 build(s, StructureType.TOWER_WOOD, cx + 22, cz - 10, 0, 0, 0);
-                build(s, StructureType.TOWER_STONE, cx + 22, cz + 10, 0, 0, 0);
                 build(s, StructureType.WALL_WOOD, cx + 15, cz - 20, cx + 15, cz - 4, 0);
-                build(s, StructureType.WALL_STONE, cx + 15, cz + 2, cx + 15, cz + 20, 0);
                 build(s, StructureType.PATH, cx, cz + 5, cx, cz + 32, 0);
                 // a port where the land meets the water, on our own land
                 ServerLevel l = s.overworld();
@@ -167,6 +169,14 @@ public class StrategyClientGameTest implements FabricClientGameTest {
                         }
                     }
                 }
+            });
+            // what wants a blacksmith or a quarry standing first
+            server.waitFor(s -> Structures.has(StrategyData.get(s).factionIdOf(player(s).getUUID()), StructureType.BLACKSMITH)
+                    && Structures.has(StrategyData.get(s).factionIdOf(player(s).getUUID()), StructureType.QUARRY), 20 * 90);
+            server.runOnServer(s -> {
+                build(s, StructureType.WORKSHOP, cx + 8, cz - 22, 0, 0, 0);
+                build(s, StructureType.TOWER_STONE, cx + 22, cz + 10, 0, 0, 0);
+                build(s, StructureType.WALL_STONE, cx + 15, cz + 2, cx + 15, cz + 20, 0);
             });
             context.waitTicks(20 * 30);
             server.runOnServer(s -> {

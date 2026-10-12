@@ -100,6 +100,9 @@ public final class StrategyManager {
             server = s;
             data = StrategyData.get(s);
             ticks = 0;
+            // (the clock starts again with each world: what was timed by the last one mustn't hold this one back)
+            lastSync = -20;
+            mapDirty = true;
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(s -> {
             server = null;

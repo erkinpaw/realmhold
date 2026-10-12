@@ -69,6 +69,8 @@ public final class Rts {
     }
 
     static void disconnected() {
+        Minecraft mc = Minecraft.getInstance();
+        if (active && mc.gui.hud.isHidden() && !hudWasHidden) mc.gui.hud.toggle();
         active = false;
         auto = true;
     }
