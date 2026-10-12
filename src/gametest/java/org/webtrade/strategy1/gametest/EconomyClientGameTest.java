@@ -108,6 +108,15 @@ public class EconomyClientGameTest implements FabricClientGameTest {
             double cx = home.centerX(), cz = home.centerZ();
             look(context, cx, cz, 60, 200);
             server.waitFor(s -> Structures.has(me(s).id, StructureType.KEEP), 20 * 30);
+            server.runOnServer(s -> {
+                int[] n = new int[3];
+                for (Structure st : StrategyData.get(s).structures.values()) {
+                    if (st.type == StructureType.DEPOSIT_STONE) n[0]++;
+                    if (st.type == StructureType.DEPOSIT_IRON) n[1]++;
+                    if (st.type == StructureType.DEPOSIT_GOLD) n[2]++;
+                }
+                log("deposits in the world: stone {}, iron {}, gold {}", n[0], n[1], n[2]);
+            });
             context.waitTicks(20 * 15);
             server.runOnServer(s -> state(s, "keep built"));
             look(context, cx, cz + 7, 30, 200);
@@ -135,8 +144,17 @@ public class EconomyClientGameTest implements FabricClientGameTest {
                     if (build(s, StructureType.WOODCUTTER, ux, uz, 0, 0, 0) != null) build(s, StructureType.WOODCUTTER, ux + 4, uz + 4, 0, 0, 0);
                 }
                 build(s, StructureType.FARM, cx - 24, cz - 18, 0, 0, 0);
-                build(s, StructureType.QUARRY, cx - 24, cz, 0, 0, 0);
-                build(s, StructureType.IRON_MINE, cx - 24, cz + 14, 0, 0, 0);
+                // the quarry and the mine by their deposits
+                for (StructureType[] k : new StructureType[][]{{StructureType.QUARRY, StructureType.DEPOSIT_STONE}, {StructureType.IRON_MINE, StructureType.DEPOSIT_IRON}}) {
+                    Structure dep = Structures.depositNear(k[1], new Vec3(cx, 64, cz), 400);
+                    log("deposit {}: {}", k[1], dep == null ? "none" : dep.origin.toShortString() + " planned " + dep.planned);
+                    if (dep == null) continue;
+                    deposits.add(dep.origin);
+                    boolean ok = false;
+                    for (int[] o : new int[][]{{8, 0}, {-8, 0}, {0, 8}, {0, -8}, {7, 7}, {-7, -7}, {7, -7}, {-7, 7}}) {
+                        if (!ok) ok = build(s, k[0], dep.origin.getX() + o[0], dep.origin.getZ() + o[1], 0, 0, 0) == null;
+                    }
+                }
                 build(s, StructureType.STOCKPILE, cx - 10, cz - 22, 0, 0, 0);
                 build(s, StructureType.HOUSE, cx + 4, cz - 24, 0, 0, 0);
                 build(s, StructureType.HOUSE, cx + 11, cz - 24, 0, 0, 0);
@@ -149,7 +167,7 @@ public class EconomyClientGameTest implements FabricClientGameTest {
                     for (int[] d : dirs) {
                         int sx = (int) cx + d[0] * r0, sz = (int) cz + d[1] * r0;
                         if (water(l, sx, sz) || !water(l, sx + d[0], sz + d[1])) continue;
-                        for (int k = 4; k < 30; k++) {
+                        for (int k = 4; k < 46; k++) {
                             int ex = sx + d[0] * k, ez = sz + d[1] * k;
                             if (!water(l, ex, ez)) {
                                 if (k > 5 && build(s, StructureType.BRIDGE, sx, sz, ex, ez, 0) == null) break outer;
@@ -181,8 +199,10 @@ public class EconomyClientGameTest implements FabricClientGameTest {
             });
             look(context, look[0], look[1], 26, 200);
             context.takeScreenshot("eco_woodcutter");
-            look(context, cx - 24, cz - 2, 30, 200);
-            context.takeScreenshot("eco_farm_quarry_mine");
+            for (int i = 0; i < deposits.size(); i++) {
+                look(context, deposits.get(i).getX(), deposits.get(i).getZ(), 24, 200);
+                context.takeScreenshot("eco_deposit" + i);
+            }
 
             // soldiers from the peasants
             server.runOnServer(s -> {
@@ -234,5 +254,6 @@ public class EconomyClientGameTest implements FabricClientGameTest {
     }
 
     private static final double[] look = new double[2];
+    private static final java.util.List<BlockPos> deposits = new java.util.ArrayList<>();
     private static final int[] chosen = {-1};
 }

@@ -243,8 +243,9 @@ public class RtsScreen extends Screen {
         for (StructureType t : StructureType.values()) {
             if (t.category != tab.category) continue;
             boolean ok = me != null && have(t.requires);
-            Component line = ok ? Component.translatable(t.key() + ".info")
-                    : Component.translatable("strategy1.rts.needs", Component.translatable(t.requires.key()));
+            Component line = !ok ? Component.translatable("strategy1.rts.needs", Component.translatable(t.requires.key()))
+                    : t.needsDeposit() != null ? Component.translatable("strategy1.rts.by_deposit", Component.translatable(t.needsDeposit().key()))
+                    : Component.translatable(t.key() + ".info");
             add(i++, t.icon, new IconButton.Info(Component.translatable(t.key()), t.cost, line), ok, () -> {
                 placing = t;
                 lineStart = null;
@@ -875,6 +876,15 @@ public class RtsScreen extends Screen {
                 };
                 w[i] = new Vec3(at.getX() + rx, at.getY(), at.getZ() + rz);
                 if (!owns(w[i].x, w[i].z)) own = false;
+            }
+            // (a quarry or mine wants its deposit near)
+            StructureType want = placing.needsDeposit();
+            if (want != null) {
+                boolean near = false;
+                for (Payloads.StructureInfo d : ClientState.STRUCTURES.values()) {
+                    if (d.type() == want.ordinal() && d.aabb().getCenter().distanceToSqr(at.getX(), d.aabb().getCenter().y, at.getZ()) < 14 * 14) near = true;
+                }
+                if (!near) own = false;
             }
             int col = own ? 0xFF60FF60 : 0xFFFF5040;
             for (int i = 0; i < 4; i++) {

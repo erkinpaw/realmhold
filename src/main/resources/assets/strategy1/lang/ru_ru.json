@@ -281,5 +281,10 @@
   "strategy1.rts.army_tip": "Воин = свободный крестьянин + оружие",
   "strategy1.rts.build_tip2": "Выберите постройку и кликните место",
   "strategy1.map.army2": "Воинов: %s · крестьян: %s",
-  "strategy1.map.realm_line2": "провинций %s · %s"
+  "strategy1.map.realm_line2": "провинций %s · %s",
+  "strategy1.build.deposit_stone": "Каменный выход",
+  "strategy1.build.deposit_iron": "Железная жила",
+  "strategy1.build.deposit_gold": "Золотая жила",
+  "strategy1.err.build_deposit": "Ставится только рядом с залежью.",
+  "strategy1.rts.by_deposit": "Ставится у залежи: %s"
 }
