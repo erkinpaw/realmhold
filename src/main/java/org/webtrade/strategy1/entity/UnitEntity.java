@@ -34,7 +34,7 @@ import java.util.UUID;
  */
 public abstract class UnitEntity extends PathfinderMob {
 
-    public enum Role {ARMY, GARRISON, RAID, POST}
+    public enum Role {ARMY, GARRISON, RAID, POST, WORKER}
 
     private static final EntityDataAccessor<Integer> DATA_FACTION = SynchedEntityData.defineId(UnitEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_COLOR = SynchedEntityData.defineId(UnitEntity.class, EntityDataSerializers.INT);

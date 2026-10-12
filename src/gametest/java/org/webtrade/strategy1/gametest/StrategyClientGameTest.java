@@ -132,8 +132,8 @@ public class StrategyClientGameTest implements FabricClientGameTest {
             double[] port = new double[4];
             server.runOnServer(s -> {
                 build(s, StructureType.FARM, cx - 24, cz - 18, 0, 0, 0);
-                build(s, StructureType.LUMBER_MILL, cx - 24, cz - 4, 0, 0, 0);
-                build(s, StructureType.MINE, cx - 24, cz + 8, 0, 0, 0);
+                build(s, StructureType.QUARRY, cx - 24, cz - 4, 0, 0, 0);
+                build(s, StructureType.BLACKSMITH, cx - 24, cz + 8, 0, 0, 0);
                 build(s, StructureType.BARRACKS, cx - 8, cz - 22, 0, 0, 0);
                 build(s, StructureType.WORKSHOP, cx + 8, cz - 22, 0, 0, 0);
                 build(s, StructureType.TOWER_WOOD, cx + 22, cz - 10, 0, 0, 0);

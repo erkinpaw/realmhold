@@ -58,7 +58,10 @@ public final class Actions {
         }
         Province p = data.province(a.province());
         switch (a.action()) {
-            case Payloads.Action.ECO -> {
+            case Payloads.Action.ECO, Payloads.Action.FORT, Payloads.Action.AGE -> {
+                return;
+            }
+            case -100 -> {
                 if (!own(player, f, p)) return;
                 if (p.eco >= Rules.maxBuilding(f.age)) {
                     no(player, "strategy1.err.max_level");
@@ -67,16 +70,6 @@ public final class Actions {
                 if (!pay(player, f, Rules.ecoCost(p.eco))) return;
                 p.eco++;
                 ok(player, Component.translatable("strategy1.ok.eco", p.name, p.eco));
-            }
-            case Payloads.Action.FORT -> {
-                if (!own(player, f, p)) return;
-                if (p.fort >= Rules.maxBuilding(f.age)) {
-                    no(player, "strategy1.err.max_level");
-                    return;
-                }
-                if (!pay(player, f, Rules.fortCost(p.fort))) return;
-                p.fort++;
-                ok(player, Component.translatable("strategy1.ok.fort", p.name, p.fort));
             }
             case Payloads.Action.GARRISON -> {
                 if (!own(player, f, p)) return;
@@ -89,13 +82,6 @@ public final class Actions {
                 ok(player, Component.translatable("strategy1.ok.garrison", p.name, p.garrison));
             }
             case Payloads.Action.RECRUIT -> recruit(player, data, f, p, UnitType.of(a.arg()));
-            case Payloads.Action.AGE -> {
-                if (f.age >= Faction.MAX_AGE) return;
-                if (!pay(player, f, Rules.ageCost(f.age))) return;
-                f.age++;
-                StrategyManager.announce(Component.translatable("strategy1.msg.age_player", f.name(), Component.translatable("strategy1.age." + f.age))
-                        .withStyle(ChatFormatting.GOLD), true);
-            }
             case Payloads.Action.WAR -> {
                 Faction o = data.faction(a.arg());
                 if (o == null || !o.alive || o == f || f.wars.contains(o.id)) return;
@@ -162,12 +148,8 @@ public final class Actions {
     }
 
     private static void recruitAt(ServerPlayer player, StrategyData data, Faction f, Province at, UnitType unit, Structure barracks) {
-        if (unit.age > f.age) {
-            no(player, "strategy1.err.age", Component.translatable("strategy1.age." + unit.age));
-            return;
-        }
-        if (f.army >= Rules.maxArmy(f.age)) {
-            no(player, "strategy1.err.army_full", Rules.maxArmy(f.age));
+        if (!Structures.has(f.id, unit.requires)) {
+            no(player, "strategy1.err.build_needs_one", Component.translatable(unit.requires.key()));
             return;
         }
         ServerLevel level = StrategyManager.server().overworld();
@@ -189,13 +171,21 @@ public final class Actions {
             no(player, "strategy1.err.recruit_here");
             return;
         }
+        // a soldier is one of the realm's peasants, armed
+        org.webtrade.strategy1.entity.PeasantEntity recruit = org.webtrade.strategy1.build.Workforce.draft(f.id, spot);
+        if (recruit == null) {
+            no(player, "strategy1.err.no_peasants");
+            return;
+        }
         if (!pay(player, f, unit.cost)) return;
+        recruit.discard();
+        f.peasants = Math.max(0, f.peasants - 1);
         SoldierEntity s = SoldierEntity.spawn(level, unit, f.id, f.color, spot, SoldierEntity.Role.ARMY);
         if (s == null) return;
         s.commander = player.getUUID();
         s.mode = SoldierEntity.Mode.HOLD;
         f.army++;
-        ok(player, Component.translatable("strategy1.ok.recruit", Component.translatable(unit.key()), f.army, Rules.maxArmy(f.age)));
+        ok(player, Component.translatable("strategy1.ok.recruit", Component.translatable(unit.key()), f.army, f.peasants));
     }
 
     // ------------------------------------------------------------------ building
@@ -211,7 +201,7 @@ public final class Actions {
                 int len = (int) Math.round(Math.hypot(b.x2() - b.x(), b.z2() - b.z())) + 1;
                 int[] c = type.cost(len);
                 no(player, err, c[0], c[1], c[2], c[3], c[4]);
-            } else no(player, err, Component.translatable("strategy1.age." + type.age));
+            } else no(player, err, type.requires == null ? Component.empty() : Component.translatable(type.requires.key()));
             return;
         }
         ok(player, Component.translatable("strategy1.ok.building", Component.translatable(type.key())));
@@ -227,7 +217,7 @@ public final class Actions {
         ServerLevel level = StrategyManager.server().overworld();
         switch (a.action()) {
             case Payloads.StructureAction.UNMAN -> {
-                if (!Structures.unman(f, st.id)) no(player, "strategy1.err.army_full", Rules.maxArmy(f.age));
+                Structures.unman(f, st.id);
             }
             case Payloads.StructureAction.DEMOLISH -> Structures.destroy(level, st);
             case Payloads.StructureAction.MAKE -> {
@@ -256,11 +246,6 @@ public final class Actions {
             }
             case WORKSHOP -> {
                 boolean treb = what == Payloads.StructureAction.TREBUCHET;
-                int age = treb ? 3 : 2;
-                if (f.age < age) {
-                    no(player, "strategy1.err.age", Component.translatable("strategy1.age." + age));
-                    return;
-                }
                 if (f.siege >= Rules.MAX_SIEGE) {
                     no(player, "strategy1.err.siege_full", Rules.MAX_SIEGE);
                     return;
@@ -274,10 +259,6 @@ public final class Actions {
             }
             case PORT -> {
                 boolean war = what == Payloads.StructureAction.WARSHIP;
-                if (war && f.age < 2) {
-                    no(player, "strategy1.err.age", Component.translatable("strategy1.age.2"));
-                    return;
-                }
                 if (f.ships >= Rules.MAX_SHIPS) {
                     no(player, "strategy1.err.ships_full", Rules.MAX_SHIPS);
                     return;
