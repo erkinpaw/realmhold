@@ -40,8 +40,8 @@ import org.webtrade.strategy1.registry.ModContent;
 import java.util.EnumSet;
 
 /**
- * A peasant of a realm. Idle, they wait by the keep; given work, they go and do it and carry what they got to the
- * keep or the nearest stockpile: a woodcutter fells the trees round his hut (the whole tree comes down, a sapling
+ * A peasant of a realm. Idle, they wait by the keep, or lend a hand where something is being built (it goes up
+ * faster for it); given work, they go and do it and carry what they got to the keep or the nearest stockpile: a woodcutter fells the trees round his hut (the whole tree comes down, a sapling
  * goes in), a farmer reaps the wheat of his field, quarrymen and miners hew stone, iron and gold. Soldiers are
  * raised from them.
  */
@@ -50,9 +50,14 @@ public class PeasantEntity extends UnitEntity {
     public enum Task {IDLE, TO_WORK, WORK, TO_STORE}
 
     private static final EntityDataAccessor<Integer> DATA_SKIN = SynchedEntityData.defineId(PeasantEntity.class, EntityDataSerializers.INT);
+    /** What they do, for the strategist's screen: -1 nothing, else the workplace's kind, or {@link #BUILDING} building. */
+    private static final EntityDataAccessor<Integer> DATA_JOB = SynchedEntityData.defineId(PeasantEntity.class, EntityDataSerializers.INT);
+    private static final int BUILDING = 1000;
 
     /** The building they work at (structure id), or -1. */
     public int job = -1;
+    /** Lending a hand at a building going up (the job is then that building), and there at it now. */
+    public boolean builder, atSite;
     public Task task = Task.IDLE;
     private int timer, repath, stuck;
     private boolean fleeing;
@@ -75,10 +80,19 @@ public class PeasantEntity extends UnitEntity {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_SKIN, 0);
+        builder.define(DATA_JOB, -1);
     }
 
     public int skin() {
         return entityData.get(DATA_SKIN);
+    }
+
+    /** The name of what they do (seen on the client). */
+    public String jobKey() {
+        int j = entityData.get(DATA_JOB);
+        if (j < 0) return "strategy1.job.idle";
+        if (j >= BUILDING) return "strategy1.job.builder";
+        return "strategy1.job." + StructureType.of(j).name().toLowerCase(java.util.Locale.ROOT);
     }
 
     @Override
@@ -115,8 +129,9 @@ public class PeasantEntity extends UnitEntity {
         return task + " target " + target + " carry " + carry + " at " + blockPosition().toShortString() + " nav " + getNavigation().isInProgress();
     }
 
+    /** Free to be sent to work or raised as a soldier (a builder is too: the building goes up without them). */
     public boolean idle() {
-        return job < 0;
+        return job < 0 || builder;
     }
 
     /** Sent to work at a building (or let go, -1). */
@@ -124,10 +139,19 @@ public class PeasantEntity extends UnitEntity {
         if (target != null) Trees.release(target);
         target = null;
         job = structure;
+        builder = false;
+        atSite = false;
         task = structure < 0 ? Task.IDLE : Task.TO_WORK;
         carry = 0;
         timer = 0;
         hold(null);
+    }
+
+    /** Sent to help where a building is going up. */
+    public void build(int structure) {
+        assign(structure);
+        builder = true;
+        hold(Items.WOODEN_AXE);
     }
 
     public Structure workplace() {
@@ -197,6 +221,11 @@ public class PeasantEntity extends UnitEntity {
                 return;
             }
             Structure st = workplace();
+            if (builder) {
+                if (st == null || st.built() || st.owner != faction()) assign(-1);
+                else buildAt(level, st);
+                return;
+            }
             if (job >= 0 && (st == null || !st.built() || st.owner != faction())) {
                 assign(-1);
                 st = null;
@@ -223,7 +252,10 @@ public class PeasantEntity extends UnitEntity {
         hold(tool(st.type));
         if (target == null) {
             target = switch (st.type) {
-                case WOODCUTTER -> Trees.nearest(level, BlockPos.containing(st.center()), 28);
+                case WOODCUTTER -> {
+                    BlockPos tree = Trees.nearest(level, BlockPos.containing(st.center()), 28);
+                    yield tree != null ? tree : Trees.nearest(level, BlockPos.containing(st.center()), 48);
+                }
                 case FARM -> Workforce.crop(level, st, random);
                 default -> st.spots.isEmpty() ? BlockPos.containing(st.center()) : BlockPos.containing(st.spots.get(0));
             };
@@ -250,6 +282,29 @@ public class PeasantEntity extends UnitEntity {
         }
         stuck = 0;
         startWork(st);
+    }
+
+    /** At a building going up: to the block being laid, and hammer away there. */
+    private void buildAt(ServerLevel level, Structure st) {
+        BlockPos at = st.progress < st.pos.length ? BlockPos.of(st.pos[Math.max(0, st.progress)]) : BlockPos.containing(st.center());
+        net.minecraft.world.phys.AABB b = st.box().inflate(2.5, 3, 2.5);
+        atSite = b.contains(position());
+        if (!atSite) {
+            walk(Vec3.atBottomCenterOf(at), 1.0);
+            // (a site he can't get to: he gives up on it for now)
+            if (++stuck > 400) {
+                stuck = 0;
+                assign(-1);
+            }
+            return;
+        }
+        stuck = 0;
+        if (position().distanceTo(Vec3.atCenterOf(at)) > 4 && --repath <= 0) {
+            repath = 40;
+            getNavigation().moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0.8);
+        }
+        getLookControl().setLookAt(at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5);
+        if (tickCount % 10 == 0) swing(InteractionHand.MAIN_HAND, true);
     }
 
     private void startWork(Structure st) {
@@ -330,6 +385,7 @@ public class PeasantEntity extends UnitEntity {
         Faction f = data().faction(faction());
         if (f != null) {
             f.res[carried.ordinal()] += carry;
+            f.brought[carried.ordinal()] += carry;
             Workforce.DELIVERED[carried.ordinal()] += carry;
             data().touch();
         }
@@ -342,7 +398,13 @@ public class PeasantEntity extends UnitEntity {
     @Override
     public void tick() {
         super.tick();
-        if (level() instanceof ServerLevel && isAlive()) Workforce.tick(this);
+        if (level() instanceof ServerLevel && isAlive()) {
+            Workforce.tick(this);
+            if (tickCount % 10 == 0) {
+                Structure st = workplace();
+                entityData.set(DATA_JOB, st == null ? -1 : builder ? BUILDING : st.type.ordinal());
+            }
+        }
     }
 
     @Override
@@ -365,6 +427,7 @@ public class PeasantEntity extends UnitEntity {
     protected void addAdditionalSaveData(ValueOutput out) {
         super.addAdditionalSaveData(out);
         out.putInt("Job", job);
+        out.putBoolean("Builder", builder);
         out.putInt("Skin", skin());
         out.putDouble("HX", home.x);
         out.putDouble("HY", home.y);
@@ -376,6 +439,8 @@ public class PeasantEntity extends UnitEntity {
         super.readAdditionalSaveData(in);
         role = Role.WORKER;
         job = in.getIntOr("Job", -1);
+        // (a builder's site may be done by now: they come back idle and are sent again)
+        if (in.getBooleanOr("Builder", false)) job = -1;
         task = job < 0 ? Task.IDLE : Task.TO_WORK;
         entityData.set(DATA_SKIN, in.getIntOr("Skin", 0));
         home = new Vec3(in.getDoubleOr("HX", getX()), in.getDoubleOr("HY", getY()), in.getDoubleOr("HZ", getZ()));

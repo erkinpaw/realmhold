@@ -1058,7 +1058,8 @@ public class RtsScreen extends Screen {
         int color;
         if (p.entity instanceof UnitEntity s) {
             icon = new ItemStack(icon(s));
-            text = Component.translatable(kindKey(s)).getString() + "  ❤ " + (int) Math.ceil(s.getHealth()) + "/" + (int) s.getMaxHealth();
+            text = Component.translatable(kindKey(s)).getString() + (s instanceof PeasantEntity pe ? " · " + Component.translatable(pe.jobKey()).getString() : "")
+                    + "  ❤ " + (int) Math.ceil(s.getHealth()) + "/" + (int) s.getMaxHealth();
             color = s.color();
         } else if (p.structure != null) {
             StructureType t = StructureType.of(p.structure.type());
