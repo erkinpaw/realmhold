@@ -36,6 +36,14 @@ public final class ModContent {
             EntityType.Builder.<org.webtrade.strategy1.entity.PeasantEntity>of(org.webtrade.strategy1.entity.PeasantEntity::new, MobCategory.MISC)
                     .sized(0.6F, 1.8F).eyeHeight(1.62F).noLootTable().clientTrackingRange(10));
 
+    /** The siege's own dead: the shield-bearer and the bomber. */
+    public static final EntityType<org.webtrade.strategy1.entity.ShieldZombie> SHIELD_ZOMBIE = entity("shield_zombie",
+            EntityType.Builder.<org.webtrade.strategy1.entity.ShieldZombie>of(org.webtrade.strategy1.entity.ShieldZombie::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.95F).eyeHeight(1.74F).noLootTable().clientTrackingRange(10));
+    public static final EntityType<org.webtrade.strategy1.entity.BomberZombie> BOMBER_ZOMBIE = entity("bomber_zombie",
+            EntityType.Builder.<org.webtrade.strategy1.entity.BomberZombie>of(org.webtrade.strategy1.entity.BomberZombie::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.95F).eyeHeight(1.74F).noLootTable().clientTrackingRange(10));
+
     private ModContent() {
     }
 
@@ -46,6 +54,8 @@ public final class ModContent {
         FabricDefaultAttributeRegistry.register(TREBUCHET, org.webtrade.strategy1.entity.SiegeEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(TRANSPORT, org.webtrade.strategy1.entity.ShipEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(WARSHIP, org.webtrade.strategy1.entity.ShipEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(SHIELD_ZOMBIE, net.minecraft.world.entity.monster.zombie.Zombie.createAttributes());
+        FabricDefaultAttributeRegistry.register(BOMBER_ZOMBIE, net.minecraft.world.entity.monster.zombie.Zombie.createAttributes());
     }
 
     private static <T extends net.minecraft.world.entity.Entity> EntityType<T> entity(String name, EntityType.Builder<T> builder) {

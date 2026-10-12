@@ -39,8 +39,9 @@ import java.util.Set;
 
 /**
  * The siege of the dead: every night a wave comes out of the dark to the realm's keep — more of them each night, and
- * more the more land the realm holds; worse kinds as the nights go on (skeletons, spiders, creepers that blow walls
- * open, witches, ravagers, and a great brute every fifth night). They fight the realm's people, batter its walls
+ * more the more land the realm holds; worse kinds as the nights go on (shield-bearers whose shield must be broken
+ * first, bombers that run for the walls and blow them open, skeletons, spiders, creepers, witches, ravagers, and a
+ * great brute every fifth night). They fight the realm's people, batter its walls
  * and buildings in their way and take the provinces they stand in. The realm's far lands are besieged unseen: those
  * with too few defenders fall. At dawn the dead burn and the rest are gone.
  */
@@ -148,6 +149,8 @@ public final class Waves {
                         Component.translatable("strategy1.wave.subtitle", made));
                 level.playSound(null, p.blockPosition(), SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 1.5F, 0.8F);
             }
+            // (the first nights: what the new kinds of the dead are, and how to meet them)
+            if (n <= 2) StrategyManager.tell(f, Component.translatable("strategy1.wave.kinds").withStyle(ChatFormatting.YELLOW));
         }
     }
 
@@ -166,6 +169,8 @@ public final class Waves {
         if (n >= 7) pool.add(EntityTypes.WITCH);
         if (n >= 8) pool.add(EntityTypes.WITHER_SKELETON);
         if (n >= 10 && i % 12 == 0) return EntityTypes.RAVAGER;
+        if (i % 6 == 2) return org.webtrade.strategy1.registry.ModContent.SHIELD_ZOMBIE;
+        if (n >= 2 && i % 7 == 4) return org.webtrade.strategy1.registry.ModContent.BOMBER_ZOMBIE;
         return pool.get(r.nextInt(pool.size()));
     }
 
@@ -186,6 +191,14 @@ public final class Waves {
         if (type == EntityTypes.SKELETON || type == EntityTypes.STRAY) m.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
         if (type == EntityTypes.VINDICATOR) m.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_AXE));
         if (type == EntityTypes.WITHER_SKELETON) m.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
+        if (m instanceof org.webtrade.strategy1.entity.ShieldZombie sz) sz.arm(n);
+        if (m instanceof org.webtrade.strategy1.entity.BomberZombie bz) {
+            // (a bomber has his own errand: the walls)
+            bz.arm(n);
+            level.addFreshEntity(m);
+            WAVE.add(m);
+            return m;
+        }
         MobAccess acc = (MobAccess) m;
         acc.strategy1$targets().addGoal(1, new NearestAttackableTargetGoal<>(m, UnitEntity.class, 10, true, false,
                 (e, l) -> e instanceof UnitEntity u && u.faction() != Faction.NEUTRAL));

@@ -220,6 +220,9 @@ public final class Actions {
                 Structures.unman(f, st.id);
             }
             case Payloads.StructureAction.DEMOLISH -> Structures.destroy(level, st);
+            case Payloads.StructureAction.AIM -> {
+                if (!Structures.aim(level, st.id, a.arg())) no(player, "strategy1.err.cant_aim");
+            }
             case Payloads.StructureAction.SELL -> {
                 if (st.type != StructureType.MARKET || !st.built() || !Market.sell(data, f, Res.of(a.arg()))) no(player, "strategy1.err.cant_trade");
             }

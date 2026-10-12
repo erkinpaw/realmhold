@@ -319,7 +319,7 @@
   "strategy1.wave.lost": "The dead have taken %s!",
   "strategy1.wave.fallen": "%s has fallen after %s nights.",
   "strategy1.engine.1": "Ballista",
-  "strategy1.engine.1.info": "Heavy bolts, far",
+  "strategy1.engine.1.info": "Heavy bolts, far. Smashes the shield-bearers' shields",
   "strategy1.engine.2": "Tower catapult",
   "strategy1.engine.2.info": "Stones into the crowd",
   "strategy1.engine.3": "Fire brazier",
@@ -399,5 +399,10 @@
   "strategy1.job.quarry": "stonecutter",
   "strategy1.job.iron_mine": "miner",
   "strategy1.job.gold_mine": "miner",
-  "strategy1.msg.idle_folk": "%s peasants idle: every place is taken. Build more farms, woodcutters, quarries or mines and they'll go to work."
+  "strategy1.msg.idle_folk": "%s peasants idle: every place is taken. Build more farms, woodcutters, quarries or mines and they'll go to work.",
+  "entity.strategy1.shield_zombie": "Shield-bearer",
+  "entity.strategy1.bomber_zombie": "Bomber",
+  "strategy1.tip.aim": "right click an enemy: target",
+  "strategy1.err.cant_aim": "This tower can't shoot there",
+  "strategy1.wave.kinds": "Shield-bearers hide behind a shield: break it first (ballista, catapult). Bombers run for the walls: shoot them from afar."
 }
