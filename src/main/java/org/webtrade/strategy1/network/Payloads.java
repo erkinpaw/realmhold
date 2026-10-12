@@ -246,7 +246,7 @@ public final class Payloads {
 
     /** Something done with a structure: make a unit there, take an archer down, pull it down. */
     public record StructureAction(int id, int action, int arg) implements CustomPacketPayload {
-        public static final int MAKE = 1, UNMAN = 2, DEMOLISH = 3, UPGRADE = 4, SELL = 5, BUY = 6, CARAVAN = 7;
+        public static final int MAKE = 1, UNMAN = 2, DEMOLISH = 3, UPGRADE = 4, SELL = 5, BUY = 6, CARAVAN = 7, AIM = 8;
         /** What MAKE makes: soldiers 0–4 (barracks), siege 10–11 (workshop), ships 20–21 (port). */
         public static final int CATAPULT = 10, TREBUCHET = 11, TRANSPORT = 20, WARSHIP = 21;
         public static final Type<StructureAction> TYPE = new Type<>(Strategy1.id("structure_action"));
