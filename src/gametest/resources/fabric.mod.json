@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "strategy1-gametest",
+  "version": "1.0.0",
+  "name": "Strategy1 client game tests",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "org.webtrade.strategy1.gametest.StrategyClientGameTest"
+    ]
+  }
+}

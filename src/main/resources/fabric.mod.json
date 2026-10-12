@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "strategy1",
+  "version": "${version}",
+  "name": "Strategy1: Hex Realms",
+  "description": "A third-person strategy in your world: hexagonal provinces, AI kingdoms, resources, development, armies, wars and conquest.",
+  "authors": ["webtrade"],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/strategy1/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "org.webtrade.strategy1.client.Strategy1DataGenerator"
+    ],
+    "client": [
+      "org.webtrade.strategy1.client.Strategy1Client"
+    ],
+    "main": [
+      "org.webtrade.strategy1.Strategy1"
+    ]
+  },
+  "mixins": [
+    "strategy1.mixins.json",
+    {
+      "config": "strategy1.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
