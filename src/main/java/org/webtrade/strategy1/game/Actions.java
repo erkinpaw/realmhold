@@ -95,7 +95,7 @@ public final class Actions {
             case Payloads.Action.DONATE -> donate(player, f);
             case Payloads.Action.FOUND -> {
                 if (f.alive && !data.owned(f.id).isEmpty()) return;
-                Faction n = MapGen.foundPlayerRealm(data, player.getUUID(), player.getGameProfile().name(), player.getX(), player.getZ());
+                Faction n = MapGen.foundPlayerRealm(StrategyManager.server().overworld(), data, player.getUUID(), player.getGameProfile().name(), player.getX(), player.getZ());
                 if (n == null) no(player, "strategy1.err.no_land");
                 else ok(player, Component.translatable("strategy1.ok.founded", data.province(n.capital).name));
             }

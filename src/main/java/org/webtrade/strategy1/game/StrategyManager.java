@@ -261,7 +261,7 @@ public final class StrategyManager {
                 }
             }
         }
-        Faction f = MapGen.foundPlayerRealm(data, p.getUUID(), p.getGameProfile().name(), p.getX(), p.getZ());
+        Faction f = MapGen.foundPlayerRealm(server.overworld(), data, p.getUUID(), p.getGameProfile().name(), p.getX(), p.getZ());
         if (f == null) return;
         Province cap = data.province(f.capital);
         p.sendSystemMessage(Component.translatable("strategy1.msg.founded", f.name(), cap.name,
@@ -793,7 +793,7 @@ public final class StrategyManager {
             p.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);
             Faction f = data == null ? null : data.factionOf(p.getUUID());
             Province cap = f == null ? null : data.province(f.capital);
-            if (cap != null && cap.hex.distToCenter(p.getX(), p.getZ()) > 400) {
+            if (cap != null && cap.hex.distToCenter(p.getX(), p.getZ()) > 48) {
                 jump(p, cap.hex.centerX(), cap.hex.centerZ());
             }
         } else {
