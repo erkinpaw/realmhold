@@ -275,6 +275,9 @@ public final class Actions {
                 if (ShipEntity.spawn(level, kind, f.id, f.color, door, yaw, player.getUUID()) != null) {
                     f.ships++;
                     ok(player, Component.translatable("strategy1.ok.made", Component.translatable(kind.key())));
+                } else {
+                    f.gain(war ? Rules.WARSHIP_COST : Rules.TRANSPORT_COST);
+                    no(player, "strategy1.err.no_water");
                 }
             }
             default -> {
