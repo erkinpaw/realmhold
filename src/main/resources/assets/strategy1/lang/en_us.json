@@ -281,5 +281,10 @@
   "strategy1.rts.army_tip": "A soldier = an idle peasant + arms",
   "strategy1.rts.build_tip2": "Pick a building and click the place",
   "strategy1.map.army2": "Soldiers: %s · peasants: %s",
-  "strategy1.map.realm_line2": "%s provinces · %s"
+  "strategy1.map.realm_line2": "%s provinces · %s",
+  "strategy1.build.deposit_stone": "Stone outcrop",
+  "strategy1.build.deposit_iron": "Iron vein",
+  "strategy1.build.deposit_gold": "Gold vein",
+  "strategy1.err.build_deposit": "It goes only by a deposit.",
+  "strategy1.rts.by_deposit": "Goes by a deposit: %s"
 }
