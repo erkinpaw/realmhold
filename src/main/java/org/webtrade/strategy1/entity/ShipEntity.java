@@ -58,6 +58,9 @@ public class ShipEntity extends UnitEntity {
     private Vec3 ashore;
     public int targetStructure = -1, targetEntity = -1;
     private int reload = 40;
+    /** The legs of her way over the water, and the one she's on. */
+    private List<Vec3> legs = new ArrayList<>();
+    private int leg;
     private Puppet puppet;
 
     public ShipEntity(EntityType<? extends ShipEntity> type, Level level) {
@@ -82,8 +85,13 @@ public class ShipEntity extends UnitEntity {
         s.getAttribute(Attributes.MAX_HEALTH).setBaseValue(kind.health);
         s.setHealth(s.getMaxHealth());
         s.setCustomName(Component.translatable(kind.key()).withColor(color));
-        double y = waterTop(level, at.x, at.y + 2, at.z);
-        s.snapTo(at.x, Double.isNaN(y) ? at.y : y - 0.35, at.z, yaw, 0);
+        // (on open water with room round her, by the port; not in the pier or the shore)
+        double y = Double.NaN;
+        for (int dy = 4; dy >= -4 && Double.isNaN(y); dy--) y = waterTop(level, at.x, at.y + dy, at.z);
+        if (Double.isNaN(y)) y = level.getSeaLevel();
+        Vec3 water = WaterPath.nearestWater(level, at, y, 14);
+        if (water == null) return null;
+        s.snapTo(water.x, y - 0.35, water.z, yaw, 0);
         s.setYBodyRot(yaw);
         s.setYHeadRot(yaw);
         s.anchor = s.position();
@@ -110,6 +118,18 @@ public class ShipEntity extends UnitEntity {
         ashore = mode == Mode.UNLOAD ? at : null;
         targetStructure = structure;
         targetEntity = entity;
+        legs = new ArrayList<>();
+        leg = 0;
+        if ((mode == Mode.MOVE || mode == Mode.UNLOAD) && at != null && level() instanceof ServerLevel level) {
+            double y = getY() + 0.35;
+            // where on the water she makes for: the point itself, or the water nearest the shore she's sent to
+            Vec3 goal = WaterPath.open(level, (int) Math.floor(at.x), (int) Math.floor(at.z), y) ? new Vec3(at.x, y, at.z)
+                    : WaterPath.nearestWater(level, at, y, 18);
+            if (goal == null) goal = at;
+            anchor = goal;
+            List<Vec3> way = WaterPath.find(level, position(), goal, y);
+            legs = way != null && !way.isEmpty() ? way : new ArrayList<>(List.of(goal));
+        }
     }
 
     // ------------------------------------------------------------------ the look
@@ -190,8 +210,13 @@ public class ShipEntity extends UnitEntity {
     }
 
     private void sail(ServerLevel level) {
-        double dx = anchor.x - getX(), dz = anchor.z - getZ(), d = Math.sqrt(dx * dx + dz * dz);
+        Vec3 to = leg < legs.size() ? legs.get(leg) : anchor;
+        double dx = to.x - getX(), dz = to.z - getZ(), d = Math.sqrt(dx * dx + dz * dz);
         if (d < 2.5) {
+            if (leg < legs.size() - 1) {
+                leg++;
+                return;
+            }
             arrive(level);
             return;
         }
@@ -206,8 +231,15 @@ public class ShipEntity extends UnitEntity {
         // her bow ahead in water, or she has come to the shore
         double reach = kind() == Kind.WARSHIP ? 4.6 : 3.4;
         if (Double.isNaN(waterTop(level, nx + fx * reach, getY() + 1.5, nz + fz * reach))) {
-            arrive(level);
-            return;
+            // land ahead: a leg cut close, she goes on to the next; at the end, she is at the shore
+            if (leg < legs.size() - 1 && d < 8) {
+                leg++;
+                return;
+            }
+            if (Double.isNaN(waterTop(level, nx, getY() + 1.5, nz)) || leg >= legs.size() - 1) {
+                arrive(level);
+                return;
+            }
         }
         setPos(nx, getY(), nz);
     }
