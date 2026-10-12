@@ -70,7 +70,8 @@ import java.util.Set;
  */
 public class RtsScreen extends Screen {
 
-    private static final int BAR = 58, TOP = 22, ICON = 22, INFO = 196;
+    private static final int BAR = 58, TOP = 22, ICON = 22;
+    private int INFO = 196;
 
     private enum Tab {
         ECONOMY(StructureType.Category.ECONOMY, Items.WHEAT), MILITARY(StructureType.Category.MILITARY, Items.IRON_SWORD),
@@ -192,6 +193,7 @@ public class RtsScreen extends Screen {
 
     @Override
     protected void init() {
+        INFO = Math.min(196, width / 3);
         seenRevision = ClientState.revision;
         seenStructures = sig();
         int y = height - BAR + 8;
@@ -232,8 +234,14 @@ public class RtsScreen extends Screen {
         return false;
     }
 
+    /** How many pictures fit in a row between the tabs and the box on the right. */
+    private int perRow() {
+        return Math.max(4, (width - INFO - 12 - x0()) / (ICON + 2));
+    }
+
     private IconButton add(int i, Item icon, IconButton.Info info, boolean active, Runnable run) {
-        IconButton b = addRenderableWidget(new IconButton(x0() + i * (ICON + 2), height - BAR + 8, ICON, icon, info, x -> run.run()));
+        int row = i / perRow(), col = i % perRow();
+        IconButton b = addRenderableWidget(new IconButton(x0() + col * (ICON + 2), height - BAR + 6 + row * (ICON + 3), ICON, icon, info, x -> run.run()));
         b.active = active;
         return b;
     }
@@ -312,6 +320,26 @@ public class RtsScreen extends Screen {
                 add(i++, Items.DISPENSER, new IconButton.Info(Component.translatable("strategy1.siege.trebuchet"), Rules.TREBUCHET_COST,
                         Component.translatable("strategy1.siege.trebuchet.info")), built && canPay(me, Rules.TREBUCHET_COST),
                         () -> structureAction(st.id(), Payloads.StructureAction.MAKE, Payloads.StructureAction.TREBUCHET));
+            }
+            case MARKET -> {
+                Payloads.Hud hud = ClientState.hud;
+                Item[] goods = {Items.WHEAT, Items.OAK_LOG, Items.COBBLESTONE, Items.IRON_INGOT};
+                for (int r = 0; r < 4; r++) {
+                    int rr = r, price = hud == null ? 0 : hud.market()[r];
+                    add(i++, goods[r], new IconButton.Info(Component.translatable("strategy1.market.sell", Component.translatable(Res.values()[r].key())),
+                            null, Component.translatable("strategy1.market.sell_line", org.webtrade.strategy1.game.Market.LOT, price)),
+                            built && me.res()[r] >= org.webtrade.strategy1.game.Market.LOT, () -> structureAction(st.id(), Payloads.StructureAction.SELL, rr)).count(price);
+                }
+                add(5, Items.LEAD, new IconButton.Info(Component.translatable("strategy1.market.caravan"), org.webtrade.strategy1.game.Res.of(20, 20, 0, 0, 0),
+                        Component.translatable("strategy1.market.caravan_line")), built, () -> structureAction(st.id(), Payloads.StructureAction.CARAVAN, 0))
+                        .count(hud == null ? 0 : hud.caravans());
+                i = perRow();
+                for (int r = 0; r < 4; r++) {
+                    int rr = r, price = hud == null ? 0 : hud.market()[4 + r];
+                    add(i++, goods[r], new IconButton.Info(Component.translatable("strategy1.market.buy", Component.translatable(Res.values()[r].key())),
+                            org.webtrade.strategy1.game.Res.of(0, 0, 0, 0, price), Component.translatable("strategy1.market.buy_line", org.webtrade.strategy1.game.Market.LOT)),
+                            built && me.res()[4] >= price, () -> structureAction(st.id(), Payloads.StructureAction.BUY, rr)).count(price).chosen(true);
+                }
             }
             case PORT -> {
                 add(i++, Items.OAK_BOAT, new IconButton.Info(Component.translatable("strategy1.ship.transport"), Rules.TRANSPORT_COST,
@@ -681,6 +709,11 @@ public class RtsScreen extends Screen {
             x = stat(g, x, new ItemStack(Items.PLAYER_HEAD), (hud.peasants() + hud.army()) + "/" + hud.armyMax(), 0xFFFFE0A0);
             x = stat(g, x, new ItemStack(Items.WOODEN_HOE), String.valueOf(hud.idle()), hud.idle() > 0 ? 0xFFA0FFA0 : 0xFFC0C0C0);
             x = stat(g, x, new ItemStack(Items.IRON_SWORD), String.valueOf(hud.army()), 0xFFFFFFFF);
+            if (hud.mode() == org.webtrade.strategy1.game.Mode.TRADE.ordinal()) {
+                int mine = 0;
+                for (int k = 0; k + 1 < hud.ranking().length; k += 2) if (hud.ranking()[k] == ClientState.me()) mine = hud.ranking()[k + 1];
+                x = stat(g, x, new ItemStack(Items.EMERALD), compact(mine) + "/" + compact(hud.goal()), 0xFF80FF90);
+            }
             if (hud.mode() == org.webtrade.strategy1.game.Mode.SIEGE.ordinal()) {
                 // the siege: which night, how many of the dead are about, how long till dark (or dawn)
                 int c = Math.abs(hud.clock());
@@ -691,6 +724,19 @@ public class RtsScreen extends Screen {
             } else {
                 int t = hud.turnLeft();
                 x = stat(g, x, new ItemStack(Items.CLOCK), t / 60 + ":" + (t % 60 < 10 ? "0" : "") + t % 60, 0xFFC0C0C0);
+            }
+        }
+        // the trading race: the realms by how much richer they've grown, a coloured mark and a number each
+        if (hud != null && hud.mode() == org.webtrade.strategy1.game.Mode.TRADE.ordinal()) {
+            int ry = TOP + 4;
+            for (int k = 0; k + 1 < hud.ranking().length && k < 10; k += 2) {
+                int col = ClientState.color(hud.ranking()[k]);
+                String v = compact(hud.ranking()[k + 1]);
+                int rx = width - 8 - font.width(v) - 12;
+                g.fill(rx - 2, ry - 2, width - 4, ry + 10, 0xA0201810);
+                g.fill(rx, ry, rx + 8, ry + 8, 0xFF000000 | (col < 0 ? 0x888888 : col));
+                g.text(font, v, rx + 11, ry, hud.ranking()[k] == ClientState.me() ? 0xFFFFE070 : 0xFFFFFFFF, true);
+                ry += 13;
             }
         }
         // where the camera is, small, on the right

@@ -325,5 +325,17 @@
   "strategy1.engine.3": "Огненная жаровня",
   "strategy1.engine.3.info": "Поджигает всех рядом",
   "strategy1.ok.engine": "На башне: %s.",
-  "strategy1.err.no_water": "У порта нет открытой воды для корабля."
+  "strategy1.err.no_water": "У порта нет открытой воды для корабля.",
+  "strategy1.market.sell": "Продать: %s",
+  "strategy1.market.sell_line": "%s шт. → %s золота",
+  "strategy1.market.buy": "Купить: %s",
+  "strategy1.market.buy_line": "%s шт. за золото",
+  "strategy1.market.caravan": "Торговый караван",
+  "strategy1.market.caravan_line": "К ближайшей мирной державе, вернётся с золотом",
+  "strategy1.err.cant_trade": "Не хватает товара или золота.",
+  "strategy1.err.caravans_busy": "Все караваны в пути (по 2 на рынок).",
+  "strategy1.err.no_partner": "Не с кем торговать (нужна мирная держава).",
+  "strategy1.msg.caravan_out": "Караван ушёл в державу %s: ~%s с, принесёт %s золота.",
+  "strategy1.msg.caravan_back": "Караван вернулся: +%s золота.",
+  "strategy1.msg.trade_won": "%s первой разбогатела на %s — победа в торговле!"
 }

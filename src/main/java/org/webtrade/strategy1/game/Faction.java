@@ -41,6 +41,8 @@ public final class Faction {
     public int peasants;
     /** Has the realm had its stock of everything for trying the game out. */
     public boolean boosted;
+    /** Its wealth when the trading race began (-1: not measured yet). */
+    public int startWealth = -1;
     public long capital;
     public boolean alive = true;
     /** At war with these realms. */
@@ -106,6 +108,7 @@ public final class Faction {
         t.putInt("peasants", peasants);
         t.putInt("ships", ships);
         t.putBoolean("boosted", boosted);
+        t.putInt("startWealth", startWealth);
         t.putLong("capital", capital);
         t.putBoolean("alive", alive);
         t.putInt("lastRaid", lastRaid);
@@ -142,6 +145,7 @@ public final class Faction {
         f.peasants = t.getIntOr("peasants", 0);
         f.ships = t.getIntOr("ships", 0);
         f.boosted = t.getBooleanOr("boosted", false);
+        f.startWealth = t.getIntOr("startWealth", -1);
         f.capital = t.getLongOr("capital", 0);
         f.alive = t.getBooleanOr("alive", true);
         f.lastRaid = t.getIntOr("lastRaid", -100);

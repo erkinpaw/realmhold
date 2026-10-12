@@ -16,6 +16,10 @@ public enum Res {
     }
 
     /** A cost or a yield: amounts in the order of the resources. */
+    public static Res of(int i) {
+        return values()[Math.floorMod(i, COUNT)];
+    }
+
     public static int[] of(int food, int wood, int stone, int iron, int gold) {
         return new int[]{food, wood, stone, iron, gold};
     }
