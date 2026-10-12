@@ -29,6 +29,8 @@ public final class StrategyData extends SavedData {
     public int nextStructure = 1;
     /** The AI capitals' forts have been planned. */
     public boolean forts;
+    /** The land's deposits have been planned. */
+    public boolean deposits;
     public int turn;
     public int nextFaction = 1;
     public boolean generated;
@@ -126,6 +128,7 @@ public final class StrategyData extends SavedData {
         t.put("players", pl);
         t.putInt("nextStructure", nextStructure);
         t.putBoolean("forts", forts);
+        t.putBoolean("deposits", deposits);
         ListTag ss = new ListTag();
         for (org.webtrade.strategy1.build.Structure s : structures.values()) ss.add(s.save());
         t.put("structures", ss);
@@ -150,6 +153,7 @@ public final class StrategyData extends SavedData {
         }
         d.nextStructure = t.getIntOr("nextStructure", 1);
         d.forts = t.getBooleanOr("forts", false);
+        d.deposits = t.getBooleanOr("deposits", false);
         ListTag ss = t.getListOrEmpty("structures");
         for (int i = 0; i < ss.size(); i++) {
             org.webtrade.strategy1.build.Structure s = org.webtrade.strategy1.build.Structure.load(ss.getCompoundOrEmpty(i));
