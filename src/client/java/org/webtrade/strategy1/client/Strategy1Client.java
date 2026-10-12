@@ -15,6 +15,7 @@ public class Strategy1Client implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         EntityRendererRegistry.register(ModContent.SOLDIER, SoldierRenderer::new);
+        EntityRendererRegistry.register(ModContent.PEASANT, org.webtrade.strategy1.client.render.PeasantRenderer::new);
         // (the engines and ships are drawn by the block displays the server puts on them)
         EntityRendererRegistry.register(ModContent.CATAPULT, net.minecraft.client.renderer.entity.NoopRenderer::new);
         EntityRendererRegistry.register(ModContent.TREBUCHET, net.minecraft.client.renderer.entity.NoopRenderer::new);

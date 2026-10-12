@@ -14,20 +14,26 @@ final class Economy {
     private Economy() {
     }
 
+    /**
+     * What the realm gets each turn without lifting a hand: an AI kingdom (counted, not walking about) its lands'
+     * yield; a player's realm the land's taxes, in gold (the rest its peasants gather and carry home).
+     */
     static int[] income(StrategyData data, Faction f) {
         int[] in = new int[Res.COUNT];
         for (Province p : data.provinces.values()) {
             if (p.owner != f.id) continue;
+            if (f.player()) {
+                in[Res.GOLD.ordinal()] += 1;
+                continue;
+            }
             int[] y = p.yield(f.capital == p.key());
             for (int i = 0; i < Res.COUNT; i++) in[i] += y[i];
         }
-        int[] b = org.webtrade.strategy1.build.Structures.income(f.id);
-        for (int i = 0; i < Res.COUNT; i++) in[i] += b[i];
         return in;
     }
 
     static int upkeep(StrategyData data, Faction f) {
-        int n = f.reserve + f.army;
+        int n = f.reserve + f.army + f.peasants;
         for (Province p : data.provinces.values()) if (p.owner == f.id) n += p.garrison;
         return n;
     }

@@ -208,18 +208,9 @@ public class StrategyMapScreen extends UiScreen {
         text(Component.translatable("strategy1.map.yield"), Palette.TEXT);
         lines.add(new Line(cursor, null, null, q.yield(capital), 1, -1));
         cursor += 11;
-        text(Component.translatable("strategy1.map.buildings", p.eco(), p.fort()), Palette.TEXT);
         text(Component.translatable("strategy1.map.garrison", p.garrison(), q.garrisonCap(capital)), Palette.TEXT);
         gap(4);
         if (me != null && p.owner() == me.id()) {
-            int max = Rules.maxBuilding(me.age());
-            int[] eco = Rules.ecoCost(p.eco()), fort = Rules.fortCost(p.fort());
-            button(Component.translatable("strategy1.btn.eco", p.eco() + 1), p.eco() < max && canPay(me, eco),
-                    Component.translatable("strategy1.tip.eco", max), () -> act(Payloads.Action.ECO, selected, 0));
-            if (p.eco() < max) cost(eco);
-            button(Component.translatable("strategy1.btn.fort", p.fort() + 1), p.fort() < max && canPay(me, fort),
-                    Component.translatable("strategy1.tip.fort", max), () -> act(Payloads.Action.FORT, selected, 0));
-            if (p.fort() < max) cost(fort);
             button(Component.translatable("strategy1.btn.garrison"), p.garrison() < q.garrisonCap(capital) && canPay(me, Rules.GARRISON_COST),
                     Component.translatable("strategy1.tip.garrison"), () -> act(Payloads.Action.GARRISON, selected, 0));
             cost(Rules.GARRISON_COST);
@@ -269,7 +260,6 @@ public class StrategyMapScreen extends UiScreen {
             for (int i = 0; i < Res.COUNT; i++) income[i] += y[i];
         }
         swatch(ClientState.name(me.id()).withStyle(s -> s.withBold(true)), me.color());
-        text(Component.translatable("strategy1.map.age", Component.translatable("strategy1.age." + me.age())), Palette.TEXT);
         text(Component.translatable("strategy1.map.provinces", owned), Palette.TEXT);
         Payloads.ProvinceInfo cap = ClientState.PROVINCES.get(me.capital());
         if (cap != null && owned > 0) text(Component.translatable("strategy1.map.capital_is", cap.name()), Palette.TEXT);
@@ -288,12 +278,6 @@ public class StrategyMapScreen extends UiScreen {
             button(Component.translatable("strategy1.btn.found"), true, null, () -> act(Payloads.Action.FOUND, 0, 0));
             return;
         }
-        if (me.age() < Faction.MAX_AGE) {
-            int[] c = Rules.ageCost(me.age());
-            button(Component.translatable("strategy1.btn.age", Component.translatable("strategy1.age." + (me.age() + 1))), canPay(me, c),
-                    Component.translatable("strategy1.tip.age"), () -> act(Payloads.Action.AGE, 0, 0));
-            cost(c);
-        }
         button(Component.translatable("strategy1.btn.donate"), true, Component.translatable("strategy1.tip.donate"),
                 () -> act(Payloads.Action.DONATE, 0, 0));
         gap(4);
@@ -303,21 +287,7 @@ public class StrategyMapScreen extends UiScreen {
     private void armyTab() {
         Payloads.FactionInfo me = ClientState.mine();
         if (me == null) return;
-        int max = Rules.maxArmy(me.age());
-        text(Component.translatable("strategy1.map.army", me.army(), max), Palette.INK);
-        para(Component.translatable("strategy1.map.recruit_where"), Palette.TEXT_MUTED);
-        for (UnitType u : UnitType.values()) {
-            boolean age = u.age <= me.age();
-            MutableComponent label = Component.translatable("strategy1.btn.recruit", Component.translatable(u.key()));
-            Component tip = Component.translatable("strategy1.tip.unit", (int) u.health, (int) u.damage,
-                    Component.translatable(u.ranged ? "strategy1.unit.ranged" : "strategy1.unit.melee"),
-                    Component.translatable("strategy1.age." + u.age));
-            button(age ? label : Component.translatable("strategy1.btn.locked", Component.translatable(u.key()),
-                    Component.translatable("strategy1.age." + u.age)), age && me.army() < max && canPay(me, u.cost), tip,
-                    () -> act(Payloads.Action.RECRUIT, 0, u.ordinal()));
-            if (age) cost(u.cost);
-        }
-        gap(4);
+        text(Component.translatable("strategy1.map.army2", me.army(), me.peasants()), Palette.INK);
         para(Component.translatable("strategy1.map.orders"), Palette.TEXT_MUTED);
         if (me.army() > 0) button(Component.translatable("strategy1.btn.dismiss"), true, Component.translatable("strategy1.tip.dismiss"),
                 () -> act(Payloads.Action.DISMISS, 0, 0));
@@ -333,7 +303,7 @@ public class StrategyMapScreen extends UiScreen {
             for (Payloads.ProvinceInfo p : ClientState.PROVINCES.values()) if (p.owner() == f.id()) owned++;
             boolean war = ClientState.atWar(me.id(), f.id());
             swatch(ClientState.name(f.id()), f.color());
-            text(Component.translatable("strategy1.map.realm_line", Component.translatable("strategy1.age." + f.age()), owned,
+            text(Component.translatable("strategy1.map.realm_line2", owned,
                     Component.translatable(war ? "strategy1.map.at_war" : "strategy1.map.at_peace")), war ? Palette.BAD : Palette.GOOD);
             warButton(me, f);
             gap(3);
