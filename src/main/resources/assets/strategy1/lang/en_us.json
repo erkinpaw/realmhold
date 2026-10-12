@@ -325,5 +325,17 @@
   "strategy1.engine.3": "Fire brazier",
   "strategy1.engine.3.info": "Sets everything near ablaze",
   "strategy1.ok.engine": "On the tower: %s.",
-  "strategy1.err.no_water": "There's no open water by the port for a ship."
+  "strategy1.err.no_water": "There's no open water by the port for a ship.",
+  "strategy1.market.sell": "Sell: %s",
+  "strategy1.market.sell_line": "%s → %s gold",
+  "strategy1.market.buy": "Buy: %s",
+  "strategy1.market.buy_line": "%s for gold",
+  "strategy1.market.caravan": "Trade caravan",
+  "strategy1.market.caravan_line": "To the nearest realm at peace; comes back with gold",
+  "strategy1.err.cant_trade": "Not enough goods or gold.",
+  "strategy1.err.caravans_busy": "Every caravan is on the road (2 a market).",
+  "strategy1.err.no_partner": "Nobody to trade with (a realm at peace is needed).",
+  "strategy1.msg.caravan_out": "A caravan left for %s: ~%ss, will bring %s gold.",
+  "strategy1.msg.caravan_back": "A caravan is back: +%s gold.",
+  "strategy1.msg.trade_won": "%s grew %s richer first — the trading race is won!"
 }

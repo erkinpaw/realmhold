@@ -30,6 +30,7 @@ final class Ai {
                 continue;
             }
             develop(data, f);
+            Market.aiTurn(data, f, RANDOM);
             expand(data, f);
             diplomacy(data, f);
             attack(data, f);

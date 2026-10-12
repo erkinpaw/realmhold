@@ -220,6 +220,16 @@ public final class Actions {
                 Structures.unman(f, st.id);
             }
             case Payloads.StructureAction.DEMOLISH -> Structures.destroy(level, st);
+            case Payloads.StructureAction.SELL -> {
+                if (st.type != StructureType.MARKET || !st.built() || !Market.sell(data, f, Res.of(a.arg()))) no(player, "strategy1.err.cant_trade");
+            }
+            case Payloads.StructureAction.BUY -> {
+                if (st.type != StructureType.MARKET || !st.built() || !Market.buy(data, f, Res.of(a.arg()))) no(player, "strategy1.err.cant_trade");
+            }
+            case Payloads.StructureAction.CARAVAN -> {
+                String err = Market.send(data, f, st, level.getGameTime());
+                if (err != null) no(player, err, 20, 20, 0, 0, 0);
+            }
             case Payloads.StructureAction.UPGRADE -> {
                 if (!Structures.upgrade(f, st.id, a.arg())) {
                     int[] c = Structures.engineCost(a.arg());
