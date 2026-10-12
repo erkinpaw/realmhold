@@ -324,6 +324,16 @@ public class RtsScreen extends Screen {
             default -> {
             }
         }
+        if (t.tower() && built) {
+            Item[] icons = {Items.CROSSBOW, Items.COBBLESTONE, Items.CAMPFIRE};
+            for (int e = 1; e <= 3; e++) {
+                int en = e;
+                int[] cost = org.webtrade.strategy1.build.Structures.engineCost(e);
+                add(i++, icons[e - 1], new IconButton.Info(Component.translatable("strategy1.engine." + e), cost, Component.translatable("strategy1.engine." + e + ".info")),
+                        st.engine() != e && canPay(me, cost), () -> structureAction(st.id(), Payloads.StructureAction.UPGRADE, en)).chosen(st.engine() == e);
+            }
+            i++;
+        }
         if (t.manned()) {
             add(i++, Items.ARROW, new IconButton.Info(Component.translatable("strategy1.rts.unman"), null, Component.translatable("strategy1.rts.unman_tip")),
                     st.archers() > 0, () -> structureAction(st.id(), Payloads.StructureAction.UNMAN, 0)).count(st.archers());
@@ -664,15 +674,24 @@ public class RtsScreen extends Screen {
         var me = ClientState.mine();
         if (me == null) return;
         int x = 4;
-        for (int i = 0; i < Res.COUNT; i++) x = stat(g, x, StrategyHud.icon(i), String.valueOf(me.res()[i]), 0xFFFFFFFF);
-        x += 8;
+        for (int i = 0; i < Res.COUNT; i++) x = stat(g, x, StrategyHud.icon(i), compact(me.res()[i]), 0xFFFFFFFF);
+        x += 4;
         Payloads.Hud hud = ClientState.hud;
         if (hud != null) {
             x = stat(g, x, new ItemStack(Items.PLAYER_HEAD), (hud.peasants() + hud.army()) + "/" + hud.armyMax(), 0xFFFFE0A0);
             x = stat(g, x, new ItemStack(Items.WOODEN_HOE), String.valueOf(hud.idle()), hud.idle() > 0 ? 0xFFA0FFA0 : 0xFFC0C0C0);
             x = stat(g, x, new ItemStack(Items.IRON_SWORD), String.valueOf(hud.army()), 0xFFFFFFFF);
-            int t = hud.turnLeft();
-            x = stat(g, x, new ItemStack(Items.CLOCK), t / 60 + ":" + (t % 60 < 10 ? "0" : "") + t % 60, 0xFFC0C0C0);
+            if (hud.mode() == org.webtrade.strategy1.game.Mode.SIEGE.ordinal()) {
+                // the siege: which night, how many of the dead are about, how long till dark (or dawn)
+                int c = Math.abs(hud.clock());
+                String clock = c / 60 + ":" + (c % 60 < 10 ? "0" : "") + c % 60;
+                x = stat(g, x, new ItemStack(Items.ZOMBIE_HEAD), String.valueOf(hud.wave()), 0xFFFF8070);
+                if (hud.monsters() > 0) x = stat(g, x, new ItemStack(Items.ROTTEN_FLESH), String.valueOf(hud.monsters()), 0xFFFF6050);
+                x = stat(g, x, new ItemStack(hud.clock() < 0 ? Items.ENDER_EYE : Items.SUNFLOWER), clock, hud.clock() < 0 ? 0xFFFF7060 : 0xFFFFE070);
+            } else {
+                int t = hud.turnLeft();
+                x = stat(g, x, new ItemStack(Items.CLOCK), t / 60 + ":" + (t % 60 < 10 ? "0" : "") + t % 60, 0xFFC0C0C0);
+            }
         }
         // where the camera is, small, on the right
         Payloads.ProvinceInfo here = ClientState.province(Hex.at(Rts.focusX, Rts.focusZ));
@@ -687,8 +706,15 @@ public class RtsScreen extends Screen {
 
     private int stat(GuiGraphicsExtractor g, int x, ItemStack icon, String value, int color) {
         g.item(icon, x, 3);
-        g.text(font, value, x + 18, 7, color, true);
-        return x + 22 + font.width(value) + 6;
+        g.text(font, value, x + 17, 7, color, true);
+        return x + 19 + font.width(value) + 5;
+    }
+
+    /** 19976 → 19.9k: the treasury's numbers kept short. */
+    private static String compact(int n) {
+        if (Math.abs(n) < 10000) return String.valueOf(n);
+        if (Math.abs(n) < 1000000) return (n / 100) / 10.0 + "k";
+        return (n / 100000) / 10.0 + "M";
     }
 
     /** The box on the right of the bottom panel: what is under the mouse (else what is chosen). */
