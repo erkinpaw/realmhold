@@ -110,6 +110,7 @@ public final class StrategyManager {
             WHERE.clear();
             org.webtrade.strategy1.build.Structures.clear();
             org.webtrade.strategy1.build.Workforce.clear();
+            Waves.clear();
         });
         ServerTickEvents.END_SERVER_TICK.register(StrategyManager::tick);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, s) -> {
@@ -138,6 +139,7 @@ public final class StrategyManager {
             second(level);
             org.webtrade.strategy1.build.Structures.second(level, ticks);
             org.webtrade.strategy1.build.Workforce.second(level);
+            if (data.mode.waves) Waves.second(level, data);
         }
         if (ticks % Rules.TURN == 0) {
             Economy.turn(data);
@@ -150,6 +152,53 @@ public final class StrategyManager {
             lastSync = ticks;
             for (ServerPlayer p : s.getPlayerList().getPlayers()) sendMap(p);
         }
+    }
+
+    /** One of the night's dead stands at a province's centre: the dead take it, bit by bit, while nobody defends it. */
+    static void deadAt(ServerLevel level, Province p) {
+        Capture c = CAPTURES.computeIfAbsent(p.key(), k -> new Capture());
+        if (c.by != Faction.NEUTRAL) {
+            c.by = Faction.NEUTRAL;
+            c.progress = 0;
+        }
+        if (c.advanced) return;
+        Vec3 center = new Vec3(p.hex.centerX(), 64, p.hex.centerZ());
+        AABB box = new AABB(center, center).inflate(24, 128, 24);
+        boolean held = !level.getEntitiesOfClass(org.webtrade.strategy1.entity.UnitEntity.class, box,
+                u -> u.isAlive() && u.faction() == p.owner && !(u instanceof org.webtrade.strategy1.entity.PeasantEntity)).isEmpty();
+        for (org.webtrade.strategy1.build.Structure s : data.structures.values()) {
+            if (s.owner == p.owner && s.province() == p.key() && s.built() && (s.type.tower() || s.type == org.webtrade.strategy1.build.StructureType.KEEP)) held = true;
+        }
+        if (held) return;
+        c.advanced = true;
+        c.progress += 2;
+        if (c.progress >= Rules.CAPTURE) {
+            CAPTURES.remove(p.key());
+            lostToTheDead(level, p);
+        }
+    }
+
+    /** A province falls to the dead: what stood in it is ruined, the land is no one's; a fallen capital is the end. */
+    static void lostToTheDead(ServerLevel level, Province p) {
+        Faction f = data.faction(p.owner);
+        if (f == null) return;
+        boolean capital = f.capital == p.key();
+        for (org.webtrade.strategy1.build.Structure s : new ArrayList<>(data.structures.values())) {
+            if (s.province() == p.key() && !s.type.deposit() && !s.planned && level.hasChunkAt(s.origin)) org.webtrade.strategy1.build.Structures.destroy(level, s);
+            else if (s.province() == p.key() && !s.type.deposit()) data.structures.remove(s.id);
+        }
+        p.owner = Faction.NEUTRAL;
+        p.garrison = 2;
+        dismissMuster(p.key());
+        announce(Component.translatable("strategy1.wave.lost", p.name).withStyle(ChatFormatting.DARK_RED), true);
+        if (capital) {
+            List<Province> left = data.owned(f.id);
+            if (left.isEmpty()) {
+                f.alive = false;
+                announce(Component.translatable("strategy1.wave.fallen", f.name(), data.wave).withStyle(ChatFormatting.DARK_RED), true);
+            } else f.capital = left.get(0).key();
+        }
+        data.touch();
     }
 
     /** Ends the turn now (operators). */
@@ -706,7 +755,8 @@ public final class StrategyManager {
         int turnLeft = (int) ((Rules.TURN - ticks % Rules.TURN) / 20);
         int people = f == null ? 0 : org.webtrade.strategy1.build.Workforce.people(f), room = f == null ? 0 : org.webtrade.strategy1.build.Workforce.room(f.id);
         int idle = f == null ? 0 : org.webtrade.strategy1.build.Workforce.idle(f.id).size();
-        ServerPlayNetworking.send(p, new Payloads.Hud(turnLeft, f == null ? 0 : f.army, room, f == null ? 0 : f.peasants, idle, keys, by, progress));
+        ServerPlayNetworking.send(p, new Payloads.Hud(turnLeft, f == null ? 0 : f.army, room, f == null ? 0 : f.peasants, idle, keys, by, progress,
+                data.mode.ordinal(), data.wave, Waves.alive(), Waves.clock(server.overworld())));
     }
 
     // ------------------------------------------------------------------ the strategist's view

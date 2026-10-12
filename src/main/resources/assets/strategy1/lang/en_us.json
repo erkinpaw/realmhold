@@ -309,5 +309,20 @@
   "strategy1.mode.trade.info": "No wars: who grows richest, by trade and crafts.",
   "strategy1.mode.sandbox": "Sandbox",
   "strategy1.mode.sandbox.info": "Only you and the land: build in peace.",
-  "strategy1.msg.joined": "You joined the realm: %s."
+  "strategy1.msg.joined": "You joined the realm: %s.",
+  "strategy1.wave.title": "Night %s",
+  "strategy1.wave.subtitle": "The dead are coming: %s",
+  "strategy1.wave.dawn": "Dawn! Night %s survived.",
+  "strategy1.wave.dawn_title": "Dawn",
+  "strategy1.wave.survived": "Nights survived: %s",
+  "strategy1.wave.brute": "Brute",
+  "strategy1.wave.lost": "The dead have taken %s!",
+  "strategy1.wave.fallen": "%s has fallen after %s nights.",
+  "strategy1.engine.1": "Ballista",
+  "strategy1.engine.1.info": "Heavy bolts, far",
+  "strategy1.engine.2": "Tower catapult",
+  "strategy1.engine.2.info": "Stones into the crowd",
+  "strategy1.engine.3": "Fire brazier",
+  "strategy1.engine.3.info": "Sets everything near ablaze",
+  "strategy1.ok.engine": "On the tower: %s."
 }

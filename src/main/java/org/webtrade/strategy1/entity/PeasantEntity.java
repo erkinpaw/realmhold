@@ -55,6 +55,7 @@ public class PeasantEntity extends UnitEntity {
     public int job = -1;
     public Task task = Task.IDLE;
     private int timer, repath, stuck;
+    private boolean fleeing;
     /** What they carry: how much of which resource. */
     private int carry;
     private Res carried = Res.WOOD;
@@ -189,6 +190,12 @@ public class PeasantEntity extends UnitEntity {
         @Override
         public void tick() {
             ServerLevel level = (ServerLevel) level();
+            // the dead about: everyone runs for the keep
+            if (tickCount % 10 == 0) fleeing = !level.getEntitiesOfClass(net.minecraft.world.entity.monster.Monster.class, getBoundingBox().inflate(12), m -> m.isAlive()).isEmpty();
+            if (fleeing) {
+                walk(home, 1.4);
+                return;
+            }
             Structure st = workplace();
             if (job >= 0 && (st == null || !st.built() || st.owner != faction())) {
                 assign(-1);

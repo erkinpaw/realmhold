@@ -35,6 +35,8 @@ public final class StrategyData extends SavedData {
     public Mode mode = Mode.CONQUEST;
     public int realms = Mode.CONQUEST.realms;
     public boolean coop = true;
+    /** The siege mode's nights survived (the wave now, or the last one). */
+    public int wave;
     public int turn;
     public int nextFaction = 1;
     public boolean generated;
@@ -136,6 +138,7 @@ public final class StrategyData extends SavedData {
         t.putInt("mode", mode.ordinal());
         t.putInt("realms", realms);
         t.putBoolean("coop", coop);
+        t.putInt("wave", wave);
         ListTag ss = new ListTag();
         for (org.webtrade.strategy1.build.Structure s : structures.values()) ss.add(s.save());
         t.put("structures", ss);
@@ -164,6 +167,7 @@ public final class StrategyData extends SavedData {
         d.mode = Mode.of(t.getIntOr("mode", 0));
         d.realms = t.getIntOr("realms", Mode.CONQUEST.realms);
         d.coop = t.getBooleanOr("coop", true);
+        d.wave = t.getIntOr("wave", 0);
         ListTag ss = t.getListOrEmpty("structures");
         for (int i = 0; i < ss.size(); i++) {
             org.webtrade.strategy1.build.Structure s = org.webtrade.strategy1.build.Structure.load(ss.getCompoundOrEmpty(i));

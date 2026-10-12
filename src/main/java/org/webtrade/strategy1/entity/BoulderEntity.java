@@ -88,7 +88,7 @@ public class BoulderEntity extends ThrowableItemProjectile {
         level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, to.x, to.y + 0.5, to.z, 6, 0.8, 0.3, 0.8, 0.02);
         level.playSound(null, to.x, to.y, to.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 1.2F, 0.8F);
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(to, to).inflate(radius))) {
-            if (shooter != null && !shooter.hostileTo(e)) continue;
+            if (shooter != null ? !shooter.hostileTo(e) : !(e instanceof net.minecraft.world.entity.monster.Enemy)) continue;
             e.hurtServer(level, damageSources().thrown(this, shooter), unitDamage);
         }
         if (shooter != null) StrategyManager.impact(level, to, shooter.faction(), structureDamage, radius + 1.5F);

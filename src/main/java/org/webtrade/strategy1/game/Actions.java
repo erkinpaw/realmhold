@@ -220,6 +220,12 @@ public final class Actions {
                 Structures.unman(f, st.id);
             }
             case Payloads.StructureAction.DEMOLISH -> Structures.destroy(level, st);
+            case Payloads.StructureAction.UPGRADE -> {
+                if (!Structures.upgrade(f, st.id, a.arg())) {
+                    int[] c = Structures.engineCost(a.arg());
+                    no(player, "strategy1.err.cost", c[0], c[1], c[2], c[3], c[4]);
+                } else ok(player, Component.translatable("strategy1.ok.engine", Component.translatable("strategy1.engine." + a.arg())));
+            }
             case Payloads.StructureAction.MAKE -> {
                 if (!st.built()) {
                     no(player, "strategy1.err.not_built");
