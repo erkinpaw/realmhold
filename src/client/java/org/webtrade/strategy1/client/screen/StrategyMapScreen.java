@@ -353,6 +353,7 @@ public class StrategyMapScreen extends UiScreen {
             g.pose().popMatrix();
         }
         marks(g);
+        things(g);
         Long hovered = inMap(mouseX, mouseY) ? Hex.at(wx(mouseX), wz(mouseY)).key() : null;
         if (hovered != null && ClientState.PROVINCES.containsKey(hovered)) outline(g, Hex.of(hovered), 0x90FFFFFF);
         if (ClientState.PROVINCES.containsKey(selected)) outline(g, Hex.of(selected), 0xFFFFF4A0);
@@ -399,6 +400,50 @@ public class StrategyMapScreen extends UiScreen {
                     Ui.centered(g, font, gs, x, y + 20, 0xFF4A1A10);
                 }
             }
+        }
+    }
+
+    /** What stands and moves on the land: buildings and deposits as their pictures, units as dots, the dead in red. */
+    private void things(GuiGraphicsExtractor g) {
+        float scale = Math.max(0.35F, Math.min(1F, zoom * 1.4F));
+        for (Payloads.StructureInfo s : ClientState.STRUCTURES.values()) {
+            org.webtrade.strategy1.build.StructureType t = org.webtrade.strategy1.build.StructureType.of(s.type());
+            if (t.line) {
+                if (zoom < 0.5F) continue;
+                int col = t.wall() ? 0xFF404040 : 0xFFB08850;
+                int x0 = (int) sx(s.box()[0]), z0 = (int) sy(s.box()[2]), x1 = (int) sx(s.box()[3]), z1 = (int) sy(s.box()[5]);
+                g.fill(Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1) + 1, Math.max(z0, z1) + 1, col);
+                continue;
+            }
+            if (zoom < 0.2F && !t.deposit() && t != org.webtrade.strategy1.build.StructureType.KEEP) continue;
+            if (t == org.webtrade.strategy1.build.StructureType.DEPOSIT_STONE && zoom < 0.7F) continue;
+            if (t.deposit() && zoom < 0.3F) continue;
+            double cx = (s.box()[0] + s.box()[3]) / 2.0, cz = (s.box()[2] + s.box()[5]) / 2.0;
+            int x = (int) sx(cx), y = (int) sy(cz);
+            if (x < mx0 - 10 || x > mx1 + 10 || y < my0 - 10 || y > my1 + 10) continue;
+            g.pose().pushMatrix();
+            g.pose().translate(x - 8 * scale, y - 8 * scale);
+            g.pose().scale(scale, scale);
+            int col = ClientState.color(s.owner());
+            if (!t.deposit()) g.fill(-1, -1, 17, 17, 0xFF000000 | (col < 0 ? 0x666666 : col));
+            g.item(new ItemStack(t.icon), 0, 0);
+            g.pose().popMatrix();
+        }
+        if (minecraft.level == null) return;
+        for (net.minecraft.world.entity.Entity e : minecraft.level.entitiesForRendering()) {
+            int col;
+            if (e instanceof org.webtrade.strategy1.entity.UnitEntity u && u.isAlive()) col = 0xFF000000 | u.color();
+            else if (e instanceof net.minecraft.world.entity.monster.Enemy && e.isAlive()) col = 0xFFE02020;
+            else continue;
+            int x = (int) sx(e.getX()), y = (int) sy(e.getZ());
+            if (x < mx0 || x > mx1 || y < my0 || y > my1) continue;
+            g.fill(x - 2, y - 2, x + 2, y + 2, 0xFF000000);
+            g.fill(x - 1, y - 1, x + 1, y + 1, col);
+        }
+        if (org.webtrade.strategy1.client.Rts.active()) {
+            // where the camera looks
+            int x = (int) sx(org.webtrade.strategy1.client.Rts.focusX), y = (int) sy(org.webtrade.strategy1.client.Rts.focusZ), r = Math.max(4, (int) (30 * zoom));
+            g.outline(x - r, y - r, 2 * r, 2 * r, 0xFFFFFFFF);
         }
     }
 
@@ -516,11 +561,21 @@ public class StrategyMapScreen extends UiScreen {
         return super.uiDrag(event, dx, dy);
     }
 
+    private long lastClick;
+
     @Override
     protected boolean uiRelease(MouseButtonEvent event) {
         if (dragging) {
             dragging = false;
             if (dragFrom < 4 && inMap(event.x(), event.y())) {
+                long now = System.currentTimeMillis();
+                // a double click: the camera goes there
+                if (now - lastClick < 350 && org.webtrade.strategy1.client.Rts.active()) {
+                    org.webtrade.strategy1.client.Rts.jump(wx(event.x()), wz(event.y()));
+                    onClose();
+                    return true;
+                }
+                lastClick = now;
                 long k = Hex.at(wx(event.x()), wz(event.y())).key();
                 if (ClientState.PROVINCES.containsKey(k)) {
                     selected = k;
