@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "DisplayAccess",
-    "BlockDisplayAccess"
+    "BlockDisplayAccess",
+    "MobAccess"
   ],
   "injectors": {
     "defaultRequire": 1
