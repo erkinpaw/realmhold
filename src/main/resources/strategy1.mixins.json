@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.webtrade.strategy1.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "DisplayAccess",
+    "BlockDisplayAccess"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
