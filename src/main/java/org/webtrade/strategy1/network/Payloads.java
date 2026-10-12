@@ -15,7 +15,7 @@ public final class Payloads {
     }
 
     public record FactionInfo(int id, int nameIndex, String playerName, int color, int age, long capital, boolean player,
-                              boolean alive, int[] res, int reserve, int army, int[] wars, int truceUntil) {
+                              boolean alive, int[] res, int reserve, int army, int[] wars, int truceUntil, int peasants) {
         void write(FriendlyByteBuf b) {
             b.writeVarInt(id);
             b.writeVarInt(nameIndex + 1);
@@ -30,11 +30,12 @@ public final class Payloads {
             b.writeVarInt(army);
             b.writeVarIntArray(wars);
             b.writeVarInt(truceUntil);
+            b.writeVarInt(peasants);
         }
 
         static FactionInfo read(FriendlyByteBuf b) {
             return new FactionInfo(b.readVarInt(), b.readVarInt() - 1, b.readUtf(), b.readInt(), b.readByte(), b.readLong(), b.readBoolean(),
-                    b.readBoolean(), b.readVarIntArray(), b.readVarInt(), b.readVarInt(), b.readVarIntArray(), b.readVarInt());
+                    b.readBoolean(), b.readVarIntArray(), b.readVarInt(), b.readVarInt(), b.readVarIntArray(), b.readVarInt(), b.readVarInt());
         }
     }
 
@@ -83,16 +84,18 @@ public final class Payloads {
     }
 
     /** Once a second: the turn's clock, the army, and every province being taken (by whom, how far along). */
-    public record Hud(int turnLeft, int army, int armyMax, long[] keys, int[] by, int[] progress) implements CustomPacketPayload {
+    public record Hud(int turnLeft, int army, int armyMax, int peasants, int idle, long[] keys, int[] by, int[] progress) implements CustomPacketPayload {
         public static final Type<Hud> TYPE = new Type<>(Strategy1.id("hud"));
         public static final StreamCodec<FriendlyByteBuf, Hud> CODEC = StreamCodec.of((b, h) -> {
             b.writeVarInt(h.turnLeft);
             b.writeVarInt(h.army);
             b.writeVarInt(h.armyMax);
+            b.writeVarInt(h.peasants);
+            b.writeVarInt(h.idle);
             b.writeLongArray(h.keys);
             b.writeVarIntArray(h.by);
             b.writeVarIntArray(h.progress);
-        }, b -> new Hud(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readLongArray(), b.readVarIntArray(), b.readVarIntArray()));
+        }, b -> new Hud(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readLongArray(), b.readVarIntArray(), b.readVarIntArray()));
 
         @Override
         public Type<? extends CustomPacketPayload> type() {

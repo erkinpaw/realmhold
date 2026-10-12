@@ -109,6 +109,7 @@ public final class StrategyManager {
             RAIDS.clear();
             WHERE.clear();
             org.webtrade.strategy1.build.Structures.clear();
+            org.webtrade.strategy1.build.Workforce.clear();
         });
         ServerTickEvents.END_SERVER_TICK.register(StrategyManager::tick);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, s) -> {
@@ -135,6 +136,7 @@ public final class StrategyManager {
             for (ServerPlayer p : s.getPlayerList().getPlayers()) ensureRealm(p);
             second(level);
             org.webtrade.strategy1.build.Structures.second(level, ticks);
+            org.webtrade.strategy1.build.Workforce.second(level);
         }
         if (ticks % Rules.TURN == 0) {
             Economy.turn(data);
@@ -189,7 +191,10 @@ public final class StrategyManager {
             p.sendSystemMessage(Component.translatable("strategy1.msg.stock", Rules.TEST_STOCK).withStyle(ChatFormatting.AQUA));
             data.touch();
         }
-        if (mine != null) return;
+        if (mine != null) {
+            org.webtrade.strategy1.build.Structures.planKeep(data, mine);
+            return;
+        }
         Faction f = MapGen.foundPlayerRealm(data, p.getUUID(), p.getGameProfile().name(), p.getX(), p.getZ());
         if (f == null) return;
         Province cap = data.province(f.capital);
@@ -426,7 +431,7 @@ public final class StrategyManager {
 
     private static void spawnGuard(ServerLevel level, Province p, Muster m, int index) {
         Faction f = data.faction(p.owner);
-        int age = f == null ? 1 : f.age;
+        int age = f == null ? 1 : org.webtrade.strategy1.build.Structures.tier(f);
         UnitType unit = UnitType.garrisonUnit(age, index);
         if (f == null && unit != UnitType.ARCHER) unit = UnitType.MILITIA;
         double a = level.getRandom().nextDouble() * Math.PI * 2, r = 3 + level.getRandom().nextDouble() * 5;
@@ -461,6 +466,11 @@ public final class StrategyManager {
         Faction f = data.faction(u.faction());
         if (u instanceof org.webtrade.strategy1.entity.SiegeEntity) {
             if (f != null && f.siege > 0) f.siege--;
+            data.touch();
+            return;
+        }
+        if (u instanceof org.webtrade.strategy1.entity.PeasantEntity) {
+            if (f != null && f.peasants > 0) f.peasants--;
             data.touch();
             return;
         }
@@ -662,7 +672,7 @@ public final class StrategyManager {
         for (Faction f : data.factions.values()) {
             int truce = mine == null ? 0 : mine.truceUntil.getOrDefault(f.id, 0);
             fs.add(new Payloads.FactionInfo(f.id, f.nameIndex, f.playerName, f.color, f.age, f.capital, f.player(), f.alive, f.res.clone(),
-                    f.reserve, f.army, f.wars.stream().mapToInt(Integer::intValue).toArray(), truce));
+                    f.reserve, f.army, f.wars.stream().mapToInt(Integer::intValue).toArray(), truce, f.peasants));
         }
         List<Payloads.ProvinceInfo> ps = new ArrayList<>();
         for (Province q : data.provinces.values()) {
@@ -683,8 +693,9 @@ public final class StrategyManager {
             progress[i++] = e.getValue().progress;
         }
         int turnLeft = (int) ((Rules.TURN - ticks % Rules.TURN) / 20);
-        int army = f == null ? 0 : f.army, max = f == null ? 0 : Rules.maxArmy(f.age);
-        ServerPlayNetworking.send(p, new Payloads.Hud(turnLeft, army, max, keys, by, progress));
+        int people = f == null ? 0 : org.webtrade.strategy1.build.Workforce.people(f), room = f == null ? 0 : org.webtrade.strategy1.build.Workforce.room(f.id);
+        int idle = f == null ? 0 : org.webtrade.strategy1.build.Workforce.idle(f.id).size();
+        ServerPlayNetworking.send(p, new Payloads.Hud(turnLeft, f == null ? 0 : f.army, room, f == null ? 0 : f.peasants, idle, keys, by, progress));
     }
 
     // ------------------------------------------------------------------ the strategist's view

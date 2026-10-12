@@ -37,6 +37,8 @@ public final class Faction {
     public int army;
     /** Its siege engines and ships in the world. */
     public int siege, ships;
+    /** Its peasants in the world. */
+    public int peasants;
     /** Has the realm had its stock of everything for trying the game out. */
     public boolean boosted;
     public long capital;
@@ -101,6 +103,7 @@ public final class Faction {
         t.putInt("reserve", reserve);
         t.putInt("army", army);
         t.putInt("siege", siege);
+        t.putInt("peasants", peasants);
         t.putInt("ships", ships);
         t.putBoolean("boosted", boosted);
         t.putLong("capital", capital);
@@ -136,6 +139,7 @@ public final class Faction {
         f.reserve = t.getIntOr("reserve", 0);
         f.army = t.getIntOr("army", 0);
         f.siege = t.getIntOr("siege", 0);
+        f.peasants = t.getIntOr("peasants", 0);
         f.ships = t.getIntOr("ships", 0);
         f.boosted = t.getBooleanOr("boosted", false);
         f.capital = t.getLongOr("capital", 0);
