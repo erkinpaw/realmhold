@@ -10,12 +10,18 @@ import net.minecraft.world.item.ItemStack;
 /**
  * A button that is a picture: an item in a slot, a count in its corner, lit when the mouse is on it, dimmed when it
  * can't be used, framed in brass when chosen. Its name, cost and what it does are shown by the screen it's on
- * ({@link #info}), not as a tooltip of text.
+ * ({@link #info}), in a note by the mouse.
  */
 public class IconButton extends Button.Plain {
 
-    /** What the screen shows of it when the mouse is on it: a name, a cost (null: none), a line of what it does. */
-    public record Info(Component name, int[] cost, Component line) {
+    /**
+     * What the screen shows of it when the mouse is on it: a name, a cost (null: none), a line of what it does, and
+     * more lines of what's worth knowing (what it needs, who works there, how strong it is).
+     */
+    public record Info(Component name, int[] cost, Component line, java.util.List<Component> more) {
+        public Info(Component name, int[] cost, Component line) {
+            this(name, cost, line, java.util.List.of());
+        }
     }
 
     private final ItemStack icon;
