@@ -31,6 +31,14 @@ public class Strategy1Client implements ClientModInitializer {
             ClientState.clear();
             Rts.disconnected();
         });
+        // the game's own front instead of the title screen (not while the game tests run, they want theirs)
+        boolean testing = System.getProperty("fabric.client.gametest") != null;
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            if (!testing && mc.gui.screen() instanceof net.minecraft.client.gui.screens.TitleScreen) {
+                if (org.webtrade.strategy1.client.screen.RealmTitleScreen.vanilla) org.webtrade.strategy1.client.screen.RealmTitleScreen.vanilla = false;
+                else mc.gui.setScreen(new org.webtrade.strategy1.client.screen.RealmTitleScreen());
+            }
+        });
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             while (Keys.MAP.consumeClick()) {
                 if (mc.player != null && mc.gui.screen() == null) {

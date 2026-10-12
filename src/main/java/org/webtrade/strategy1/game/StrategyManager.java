@@ -196,6 +196,16 @@ public final class StrategyManager {
             org.webtrade.strategy1.build.Structures.planKeep(data, mine);
             return;
         }
+        if (data.coop) {
+            for (Faction f : data.factions.values()) {
+                if (f.player() && f.alive) {
+                    data.players.put(p.getUUID(), f.id);
+                    data.touch();
+                    p.sendSystemMessage(Component.translatable("strategy1.msg.joined", f.name()).withStyle(ChatFormatting.GOLD));
+                    return;
+                }
+            }
+        }
         Faction f = MapGen.foundPlayerRealm(data, p.getUUID(), p.getGameProfile().name(), p.getX(), p.getZ());
         if (f == null) return;
         Province cap = data.province(f.capital);
