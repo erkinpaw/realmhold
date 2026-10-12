@@ -426,7 +426,9 @@ public class StrategyMapScreen extends UiScreen {
             g.pose().scale(scale, scale);
             int col = ClientState.color(s.owner());
             if (!t.deposit()) g.fill(-1, -1, 17, 17, 0xFF000000 | (col < 0 ? 0x666666 : col));
-            g.item(new ItemStack(t.icon), 0, 0);
+            var sprite = org.webtrade.strategy1.client.ui.Icons.building(t);
+            if (sprite != null) org.webtrade.strategy1.client.ui.Ui.blit(g, sprite, -2, -2, 18, 18);
+            else g.item(new ItemStack(t.icon), 0, 0);
             g.pose().popMatrix();
         }
         if (minecraft.level == null) return;
