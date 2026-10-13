@@ -13,7 +13,14 @@ public enum UnitType {
     ARCHER(StructureType.BARRACKS, 18, 2, 0.30, true, Res.of(10, 25, 0, 0, 0)),
     SWORDSMAN(StructureType.BLACKSMITH, 26, 5, 0.30, false, Res.of(15, 5, 0, 15, 0)),
     KNIGHT(StructureType.BLACKSMITH, 36, 7, 0.34, false, Res.of(20, 0, 0, 30, 10)),
-    GUARD(StructureType.BLACKSMITH, 44, 9, 0.33, false, Res.of(25, 0, 0, 40, 30));
+    GUARD(StructureType.BLACKSMITH, 44, 9, 0.33, false, Res.of(25, 0, 0, 40, 30)),
+    /** Doesn't fight: heals the realm's own round him, half a heart every few seconds. */
+    HEALER(StructureType.BARRACKS, 16, 1, 0.31, false, Res.of(20, 5, 0, 0, 15));
+
+    /** A healer's reach (blocks) and how often he heals (ticks), and how much (half a heart). */
+    public static final double HEAL_RADIUS = 6;
+    public static final int HEAL_EVERY = 60;
+    public static final float HEAL = 1F;
 
     /** The building the realm must have to raise them. */
     public final StructureType requires;
@@ -41,7 +48,12 @@ public enum UnitType {
             case SWORDSMAN -> Items.IRON_SWORD;
             case KNIGHT -> Items.DIAMOND_SWORD;
             case GUARD -> Items.NETHERITE_SWORD;
+            case HEALER -> Items.GOLDEN_APPLE;
         };
+    }
+
+    public boolean heals() {
+        return this == HEALER;
     }
 
     /** A garrison's soldiers: the best melee kind the realm's might allows (and some archers). */

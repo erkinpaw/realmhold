@@ -425,5 +425,8 @@
   "strategy1.tip.left": "~%s left",
   "strategy1.err.no_shore": "No shore near",
   "strategy1.rts.unload": "Put ashore",
-  "strategy1.rts.unload_tip": "The ship goes to the nearest shore and puts her soldiers on it. Or choose the soldiers aboard and right click the shore"
+  "strategy1.rts.unload_tip": "The ship goes to the nearest shore and puts her soldiers on it. Or choose the soldiers aboard and right click the shore",
+  "strategy1.unit.healer": "Healer",
+  "strategy1.unit.healer.info": "Doesn't fight. Heals his own and allies round him: half a heart at a time.",
+  "strategy1.tip.unit_heals": "❤ %s   heals within %s blocks every %s s"
 }
