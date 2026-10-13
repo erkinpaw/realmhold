@@ -73,7 +73,14 @@ public final class Structures {
         if (type == StructureType.KEEP && nearest(f.id, StructureType.KEEP, Vec3.ZERO) != null) return "strategy1.err.build_overlap";
         if (type.requires != null && nearest(f.id, type.requires, Vec3.ZERO) == null) return "strategy1.err.build_needs";
         if (type.deposit() || type == StructureType.KEEP && nearest(f.id, StructureType.KEEP, Vec3.ZERO) != null) return "strategy1.err.build_overlap";
-        if (type.needsDeposit() != null && depositNear(type.needsDeposit(), Vec3.atCenterOf(a), 14) == null) return "strategy1.err.build_deposit";
+        // a quarry or mine goes right on its deposit (as the Cossacks had it), one to a deposit
+        Structure dep = null;
+        if (type.needsDeposit() != null) {
+            dep = depositNear(type.needsDeposit(), Vec3.atCenterOf(a), 6);
+            if (dep == null) return "strategy1.err.build_deposit";
+            for (Structure o : d.structures.values()) if (o.parent == dep.id && o.type == type) return "strategy1.err.deposit_taken";
+            a = new BlockPos(dep.origin.getX(), a.getY(), dep.origin.getZ());
+        }
         if (!level.hasChunkAt(a) || type.line && !level.hasChunkAt(b)) return "strategy1.err.recruit_here";
         // a wall begun (or ended) at a tower, the keep or another wall runs from its side
         if (type.wall()) {
@@ -82,6 +89,7 @@ public final class Structures {
         }
         if (type == StructureType.BRIDGE && Blueprints.bridgeTooSteep(level, a, b)) return "strategy1.err.bridge_steep";
         Structure s = new Structure(d.nextStructure, type, f.id, a, type.line ? b : a, rot & 3);
+        if (dep != null) s.parent = dep.id;
         if (type.line) {
             int len = s.length();
             if (len < 2) return "strategy1.err.build_short";
@@ -96,7 +104,7 @@ public final class Structures {
             // (over the ground, whatever the height: no farm on the keep's roof)
             AABB box = flat(s.box().deflate(0.1));
             for (Structure o : d.structures.values()) {
-                if (o.type == StructureType.PATH || o.planned) continue;
+                if (o.type == StructureType.PATH || o.planned || o == dep) continue;
                 // (a wall may lean on a tower, the keep or another wall at its ends)
                 if (type.wall() && (o.type.tower() || o.type == StructureType.KEEP || o.type.wall() || o.type == StructureType.GATE)) continue;
                 if (flat(o.box()).intersects(box)) return "strategy1.err.build_overlap";
@@ -120,7 +128,8 @@ public final class Structures {
         int n = Payloads.StructureInfo.NONE;
         Vec3 door = s.door;
         return new int[]{door == null ? n : (int) Math.floor(door.x), door == null ? n : (int) Math.floor(door.y), door == null ? n : (int) Math.floor(door.z),
-                s.rally == null ? n : (int) Math.floor(s.rally.x), s.rally == null ? n : (int) Math.floor(s.rally.z), -1,
+                s.rally == null ? n : (int) Math.floor(s.rally.x), s.rally == null ? n : (int) Math.floor(s.rally.z),
+                s.type.deposit() ? left(s) : s.type.needsDeposit() != null ? leftAt(s) : -1,
                 s.type == StructureType.GATE ? (s.held ? 1 : 0) : -1, s.open ? 1 : 0};
     }
 
@@ -206,6 +215,43 @@ public final class Structures {
                 dirty = true;
             }
         }
+    }
+
+    // ------------------------------------------------------------------ what's in the ground
+
+    /** What's left in a deposit (reckoned the first time it's asked: a rich province's holds half again as much). */
+    public static int left(Structure dep) {
+        if (dep.left < 0) {
+            Province p = data().province(dep.province());
+            boolean rich = p != null && p.deposit != org.webtrade.strategy1.hex.Deposit.NONE;
+            dep.left = (int) (dep.type.riches() * (rich ? 1.5 : 1.0));
+        }
+        return dep.left;
+    }
+
+    /** What a quarry or mine's deposit has left (−1 if it has none). */
+    public static int leftAt(Structure mine) {
+        Structure dep = data().structures.get(mine.parent);
+        return dep == null || !dep.type.deposit() ? -1 : left(dep);
+    }
+
+    /** A load dug at a quarry or mine: as much as the deposit has left of it, and that much less in it. */
+    public static int dig(Structure mine, int load) {
+        Structure dep = data().structures.get(mine.parent);
+        if (dep == null || !dep.type.deposit()) return load;
+        int got = Math.min(load, left(dep));
+        dep.left -= got;
+        if (dep.left <= 0 && got > 0) {
+            StrategyManager.tell(data().faction(mine.owner), Component.translatable("strategy1.msg.mine_empty", Component.translatable(mine.type.key()))
+                    .withStyle(ChatFormatting.YELLOW));
+        }
+        dirty = true;
+        return got;
+    }
+
+    /** A quarry or mine whose deposit is dug out (its workers go). */
+    public static boolean exhausted(Structure s) {
+        return s.type.needsDeposit() != null && leftAt(s) == 0;
     }
 
     /** A box from the bottom of the world to the top: what stands over the same ground. */
