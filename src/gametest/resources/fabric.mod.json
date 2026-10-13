@@ -6,6 +6,23 @@
   "environment": "client",
   "entrypoints": {
     "fabric-client-gametest": [
+      "org.webtrade.strategy1.gametest.MenuClientGameTest",
+      "org.webtrade.strategy1.gametest.StrategyClientGameTest",
+      "org.webtrade.strategy1.gametest.EconomyClientGameTest",
+      "org.webtrade.strategy1.gametest.SiegeClientGameTest",
+      "org.webtrade.strategy1.gametest.NavalClientGameTest",
+      "org.webtrade.strategy1.gametest.TradeClientGameTest",
+      "org.webtrade.strategy1.gametest.MapClientGameTest",
+      "org.webtrade.strategy1.gametest.TownClientGameTest",
+      "org.webtrade.strategy1.gametest.HintsClientGameTest",
+      "org.webtrade.strategy1.gametest.WorkersClientGameTest",
+      "org.webtrade.strategy1.gametest.CapitalsClientGameTest",
+      "org.webtrade.strategy1.gametest.MonstersClientGameTest",
+      "org.webtrade.strategy1.gametest.OutpostClientGameTest",
+      "org.webtrade.strategy1.gametest.PlacementClientGameTest",
+      "org.webtrade.strategy1.gametest.GatesClientGameTest",
+      "org.webtrade.strategy1.gametest.MinesClientGameTest",
+      "org.webtrade.strategy1.gametest.TowersClientGameTest",
       "org.webtrade.strategy1.gametest.UnitsClientGameTest"
     ]
   }
