@@ -402,7 +402,7 @@ public class PeasantEntity extends UnitEntity {
         super.tick();
         if (level() instanceof ServerLevel && isAlive()) {
             Workforce.tick(this);
-            if (tickCount % 4 == 0) torch((ServerLevel) level());
+            if (tickCount % 10 == 0) torch((ServerLevel) level());
             if (tickCount % 10 == 0) {
                 Structure st = workplace();
                 entityData.set(DATA_JOB, st == null ? -1 : builder ? BUILDING : st.type.ordinal());
@@ -416,7 +416,8 @@ public class PeasantEntity extends UnitEntity {
         boolean night = t >= 12800 && t < 23200;
         if (night != !getOffhandItem().isEmpty()) setItemSlot(EquipmentSlot.OFFHAND, night ? new ItemStack(Items.TORCH) : ItemStack.EMPTY);
         BlockPos want = night && isAlive() ? blockPosition().above() : null;
-        if (want != null && want.equals(light)) return;
+        // (each light put or taken makes the land round it be lit and drawn again: only when they've gone a few steps)
+        if (want != null && light != null && light.distManhattan(want) < 4) return;
         douse(level);
         if (want != null && level.getBlockState(want).isAir()) {
             level.setBlock(want, Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 13), 2);
