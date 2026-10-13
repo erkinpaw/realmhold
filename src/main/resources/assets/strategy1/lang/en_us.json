@@ -191,10 +191,10 @@
   "strategy1.build.port.info": "On the shore: builds ships",
   "strategy1.build.tower_wood": "Wooden tower",
   "strategy1.build.tower_wood.short": "Tower W",
-  "strategy1.build.tower_wood.info": "Up to 2 archers",
+  "strategy1.build.tower_wood.info": "Up to 4 bowmen, shooting 30 blocks. Takes a ballista",
   "strategy1.build.tower_stone": "Stone tower",
   "strategy1.build.tower_stone.short": "Tower S",
-  "strategy1.build.tower_stone.info": "Up to 4 archers, strong",
+  "strategy1.build.tower_stone.info": "Up to 8 bowmen, shooting 36 blocks. A ballista, a catapult or a brazier",
   "strategy1.build.wall_wood": "Palisade",
   "strategy1.build.wall_wood.short": "Wall W",
   "strategy1.build.wall_wood.info": "Two clicks: start and end",
@@ -422,5 +422,8 @@
   "strategy1.err.gate_there": "There is a gate here already",
   "strategy1.err.deposit_taken": "This deposit is worked already",
   "strategy1.msg.mine_empty": "%s: the deposit is dug out",
-  "strategy1.tip.left": "~%s left"
+  "strategy1.tip.left": "~%s left",
+  "strategy1.err.no_shore": "No shore near",
+  "strategy1.rts.unload": "Put ashore",
+  "strategy1.rts.unload_tip": "The ship goes to the nearest shore and puts her soldiers on it. Or choose the soldiers aboard and right click the shore"
 }

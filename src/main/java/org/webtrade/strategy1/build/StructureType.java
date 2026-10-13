@@ -25,8 +25,8 @@ public enum StructureType {
     /** A post on the land to be taken (next to the realm's own): a soldier in it, and the province comes over. */
     OUTPOST(Category.MILITARY, null, Res.of(0, 40, 10, 0, 0), 160, -2, -2, 2, 2, false, 10, 0, 1, Items.OAK_FENCE),
     PORT(Category.MILITARY, null, Res.of(0, 120, 30, 0, 0), 260, -2, -2, 2, 10, false, 18, 0, 0, Items.OAK_BOAT),
-    TOWER_WOOD(Category.DEFENCE, null, Res.of(0, 40, 0, 0, 0), 220, -2, -2, 2, 2, false, 10, 0, 2, Items.SPRUCE_FENCE),
-    TOWER_STONE(Category.DEFENCE, QUARRY, Res.of(0, 20, 120, 0, 0), 600, -3, -3, 3, 3, false, 20, 0, 4, Items.STONE_BRICKS),
+    TOWER_WOOD(Category.DEFENCE, null, Res.of(0, 40, 0, 0, 0), 220, -2, -2, 2, 2, false, 10, 0, 4, Items.SPRUCE_FENCE),
+    TOWER_STONE(Category.DEFENCE, QUARRY, Res.of(0, 20, 120, 0, 0), 600, -3, -3, 3, 3, false, 20, 0, 8, Items.STONE_BRICKS),
     WALL_WOOD(Category.DEFENCE, null, Res.of(0, 4, 0, 0, 0), 25, 0, 0, 0, 0, true, 0, 0, 0, Items.OAK_LOG),
     WALL_STONE(Category.DEFENCE, QUARRY, Res.of(0, 0, 8, 0, 0), 70, 0, 0, 0, 0, true, 0, 0, 0, Items.STONE_BRICK_WALL),
     /** A gate cut in a wall (put there from the wall): a portcullis that rises for the realm's own and drops before the enemy. */
@@ -141,6 +141,31 @@ public enum StructureType {
             default -> 0;
         };
     }
+
+    /** How far bowmen on it shoot (a wall a little further than the field, a stone tower furthest). */
+    public double reach() {
+        return switch (this) {
+            case TOWER_STONE -> 36;
+            case TOWER_WOOD -> 30;
+            case KEEP -> 32;
+            case WALL_WOOD, WALL_STONE, OUTPOST -> 26;
+            default -> FIELD_REACH;
+        };
+    }
+
+    /** Can this tower carry that engine (a wooden one only a ballista)? */
+    public boolean carries(int engine) {
+        return this == TOWER_STONE && engine >= 1 && engine <= 3 || this == TOWER_WOOD && engine == 1;
+    }
+
+    /** How far a tower's engine reaches (1 ballista, 2 catapult, 3 fire): a stone tower's further. */
+    public double engineReach(int engine) {
+        double r = engine == 1 ? 40 : engine == 2 ? 44 : engine == 3 ? 14 : 0;
+        return this == TOWER_STONE ? r * 1.2 : r;
+    }
+
+    /** How far bowmen shoot on the field. */
+    public static final double FIELD_REACH = 18;
 
     /** Where carriers bring what they gathered. */
     public boolean store() {
