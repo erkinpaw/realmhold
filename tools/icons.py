@@ -378,6 +378,25 @@ def _():
     return p.done()
 
 
+@icon('gate')
+def _():
+    p = Pic()
+    # a gate between two towers: the portcullis half up
+    bricks(p, 0, 4, 4, 18, STONE_L, STONE_D, WHITE)
+    bricks(p, 15, 4, 19, 18, STONE_L, STONE_D, WHITE)
+    for x in (0, 3, 15, 18):
+        p.rect(x, 2, x + 1, 3, STONE_L)
+    p.rect(5, 4, 14, 6, STONE)
+    p.line(5, 6, 14, 6, STONE_D)
+    p.rect(5, 7, 14, 18, DARK)
+    for x in range(6, 14, 2):
+        p.line(x, 7, x, 13, IRON_D)
+    for y in (8, 11):
+        p.line(5, y, 14, y, IRON_D)
+    p.line(6, 14, 13, 14, IRON)
+    return p.done()
+
+
 @icon('path')
 def _():
     p = Pic()

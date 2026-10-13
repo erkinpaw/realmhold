@@ -410,5 +410,14 @@
   "strategy1.err.build_outpost": "An outpost goes wholly in a foreign province next to your land",
   "strategy1.err.outpost_there": "You have an outpost here already",
   "strategy1.err.bridge_steep": "Too steep: a bridge climbs at most a block for each block of its length",
-  "strategy1.tip.rally": "right click the ground: gathering point"
+  "strategy1.tip.rally": "right click the ground: gathering point",
+  "strategy1.build.gate": "Gate",
+  "strategy1.build.gate.info": "Rises before your soldiers, folk and allies; drops when an enemy is near",
+  "strategy1.rts.gate_make": "Put a gate here",
+  "strategy1.rts.gate_make_tip": "A gate in the wall where you chose it (click the wall nearer its middle)",
+  "strategy1.rts.gate_hold": "Hold it open",
+  "strategy1.rts.gate_hold_tip": "Open even with an enemy near. Again: by itself once more, open for your own, shut before the enemy",
+  "strategy1.ok.gate": "The gate is going up",
+  "strategy1.err.gate_here": "A gate goes in a wall of 5 blocks or more, not at its very end",
+  "strategy1.err.gate_there": "There is a gate here already"
 }
