@@ -305,7 +305,8 @@ public class RtsScreen extends Screen {
         for (UnitType u : UnitType.values()) {
             boolean built = have(u.requires);
             List<Component> more = new ArrayList<>();
-            more.add(Component.translatable("strategy1.tip.unit_stats", (int) u.health, (int) u.damage,
+            more.add(u.heals() ? Component.translatable("strategy1.tip.unit_heals", (int) u.health, (int) UnitType.HEAL_RADIUS, UnitType.HEAL_EVERY / 20)
+                    : Component.translatable("strategy1.tip.unit_stats", (int) u.health, (int) u.damage,
                     Component.translatable(u.ranged ? "strategy1.unit.ranged" : "strategy1.unit.melee")));
             more.add(Component.translatable("strategy1.rts.needs", Component.translatable(u.requires.key())).withStyle(built ? ChatFormatting.GREEN : ChatFormatting.RED));
             more.add(Component.translatable("strategy1.tip.unit_peasant").withStyle(hands ? ChatFormatting.GREEN : ChatFormatting.RED));
@@ -1058,7 +1059,9 @@ public class RtsScreen extends Screen {
     private void reaches(GuiGraphicsExtractor g) {
         int n = 0;
         for (int id : SELECTED) {
-            if (!(minecraft.level.getEntity(id) instanceof SoldierEntity s) || !s.unit().ranged || n++ > 12) continue;
+            if (!(minecraft.level.getEntity(id) instanceof SoldierEntity s) || n++ > 12) continue;
+            if (s.unit().heals()) ring(g, new Vec3(s.getX(), s.getY() + 0.1, s.getZ()), UnitType.HEAL_RADIUS, 0xA060FF80);
+            if (!s.unit().ranged) continue;
             double r = s.isPassenger() ? 26 : StructureType.FIELD_REACH;
             ring(g, new Vec3(s.getX(), s.getY() + 0.1, s.getZ()), r, 0x90FFB040);
         }

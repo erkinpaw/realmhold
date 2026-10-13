@@ -48,6 +48,15 @@ public class SoldierRenderer extends HumanoidMobRenderer<SoldierEntity, AvatarRe
         state.showRightSleeve = true;
         state.showLeftPants = true;
         state.showRightPants = true;
+        // in a fight: a bowman draws his bow, a swordsman keeps his shield up between blows
+        if (entity.isAggressive()) {
+            if (entity.unit().ranged) {
+                state.rightArmPose = HumanoidModel.ArmPose.BOW_AND_ARROW;
+                state.leftArmPose = HumanoidModel.ArmPose.BOW_AND_ARROW;
+            } else if (!entity.getOffhandItem().isEmpty() && state.attackTime <= 0) {
+                state.leftArmPose = HumanoidModel.ArmPose.BLOCK;
+            }
+        }
     }
 
     @Override

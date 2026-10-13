@@ -162,6 +162,11 @@ public class SoldierEntity extends UnitEntity {
                 setItemSlot(EquipmentSlot.FEET, new ItemStack(Items.IRON_BOOTS));
                 setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.SHIELD));
             }
+            case HEALER -> {
+                setItemSlot(EquipmentSlot.HEAD, dyed(Items.LEATHER_HELMET, 0xF0F0F0));
+                setItemSlot(EquipmentSlot.LEGS, dyed(Items.LEATHER_LEGGINGS, 0xF0F0F0));
+                setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.POTION));
+            }
             case GUARD -> {
                 setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.DIAMOND_HELMET));
                 setItemSlot(EquipmentSlot.LEGS, new ItemStack(Items.DIAMOND_LEGGINGS));
@@ -230,6 +235,39 @@ public class SoldierEntity extends UnitEntity {
         swing(InteractionHand.MAIN_HAND);
     }
 
+    /** The healer at work: the realm's own (and allies) round him, hurt, a little better; hearts over them, a ring of light round him. */
+    private void heal(ServerLevel level) {
+        int healed = 0;
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(UnitType.HEAL_RADIUS, 3, UnitType.HEAL_RADIUS),
+                x -> x instanceof UnitEntity u && x.isAlive() && !hostileTo(x) && u.faction() != org.webtrade.strategy1.game.Faction.NEUTRAL
+                        && x.getHealth() < x.getMaxHealth() && x.distanceTo(this) <= UnitType.HEAL_RADIUS)) {
+            e.heal(UnitType.HEAL);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.HEART, e.getX(), e.getY() + e.getBbHeight() + 0.3, e.getZ(), 1, 0.1, 0.1, 0.1, 0);
+            healed++;
+        }
+        for (int i = 0; i < 16; i++) {
+            double a = i * Math.PI * 2 / 16;
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.HAPPY_VILLAGER, getX() + Math.cos(a) * UnitType.HEAL_RADIUS, getY() + 0.2,
+                    getZ() + Math.sin(a) * UnitType.HEAL_RADIUS, 1, 0, 0, 0, 0);
+        }
+        if (healed > 0) {
+            swing(InteractionHand.MAIN_HAND);
+            playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 0.8F, 1.4F);
+        }
+    }
+
+    @Override
+    public boolean doHurtTarget(ServerLevel level, net.minecraft.world.entity.Entity target) {
+        boolean hit = super.doHurtTarget(level, target);
+        if (hit) {
+            // (a blow that lands: seen and heard)
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.SWEEP_ATTACK, target.getX(), target.getY() + target.getBbHeight() * 0.6, target.getZ(), 1, 0, 0, 0, 0);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.CRIT, target.getX(), target.getY() + target.getBbHeight() * 0.6, target.getZ(), 5, 0.2, 0.2, 0.2, 0.2);
+            playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 0.6F, 0.9F + random.nextFloat() * 0.2F);
+        }
+        return hit;
+    }
+
     /** A blow at a building (it's slow work without siege engines). */
     void strike() {
         if (reload > 0) return;
@@ -250,6 +288,7 @@ public class SoldierEntity extends UnitEntity {
         if (reload > 0) reload--;
         if (!(level() instanceof ServerLevel)) return;
         if (role == Role.ARMY && isAlive()) StrategyManager.armyTick(this);
+        if (unit().heals() && isAlive() && tickCount % UnitType.HEAL_EVERY == 0) heal((ServerLevel) level());
         if (mode == Mode.POSTED) {
             // at their post: they stand where they were put
             setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));

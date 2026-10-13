@@ -4,6 +4,7 @@
   "package": "org.webtrade.strategy1.mixin.client",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "NightLightAccess"
   ],
   "injectors": {
     "defaultRequire": 1
