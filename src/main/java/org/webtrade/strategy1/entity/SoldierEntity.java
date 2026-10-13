@@ -56,7 +56,7 @@ public class SoldierEntity extends UnitEntity {
 
     /** How far this one shoots: on the field, from a deck, from what he's posted on. */
     public double reach() {
-        if (isPassenger()) return 26;
+        if (isPassenger()) return org.webtrade.strategy1.build.StructureType.DECK_REACH;
         if (mode == Mode.POSTED && data() != null) {
             org.webtrade.strategy1.build.Structure st = data().structures.get(structure);
             if (st != null) return st.type.reach();
@@ -230,7 +230,10 @@ public class SoldierEntity extends UnitEntity {
         }
         double dx = target.getX() - getX(), dy = target.getY(0.3333) - arrow.getY(), dz = target.getZ() - getZ();
         double flat = Math.sqrt(dx * dx + dz * dz);
-        Projectile.spawnProjectileUsingShoot(arrow, sl, arrowStack, dx, dy + flat * 0.2, dz, 1.7F, 4F);
+        // (far shots harder and higher, so they carry: aimed over by what the arrow drops on its way)
+        float speed = (float) Math.clamp(1.7 + (flat - 18) * 0.03, 1.7, 2.8);
+        double drop = 0.03 * flat * flat / (speed * speed);
+        Projectile.spawnProjectileUsingShoot(arrow, sl, arrowStack, dx, dy + drop, dz, speed, flat > 30 ? 3F : 4F);
         playSound(SoundEvents.SKELETON_SHOOT, 1.0F, 1.0F / (random.nextFloat() * 0.4F + 0.8F));
         swing(InteractionHand.MAIN_HAND);
     }
