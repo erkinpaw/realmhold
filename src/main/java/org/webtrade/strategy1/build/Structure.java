@@ -46,6 +46,8 @@ public final class Structure {
     public boolean instant;
     /** A gate's: the wall it's cut in, where its portcullis hangs, held open by hand, open now. */
     public int parent = -1;
+    /** A deposit's: what is left in it to dig (−1: not reckoned yet). */
+    public int left = -1;
     public long[] leaves = new long[0];
     public boolean held, open, leavesLaid;
     /** A tower's engine on its top: 0 none, 1 ballista, 2 catapult, 3 fire. */
@@ -128,8 +130,9 @@ public final class Structure {
         t.putBoolean("planned", planned);
         t.putBoolean("instant", instant);
         t.putInt("engine", engine);
+        t.putInt("parent", parent);
+        t.putInt("left", left);
         if (type == StructureType.GATE) {
-            t.putInt("parent", parent);
             t.putLongArray("leaves", leaves);
             t.putBoolean("held", held);
         }
@@ -171,6 +174,7 @@ public final class Structure {
         s.instant = t.getBooleanOr("instant", false);
         s.engine = t.getIntOr("engine", 0);
         s.parent = t.getIntOr("parent", -1);
+        s.left = t.getIntOr("left", -1);
         s.leaves = t.getLongArray("leaves").orElse(new long[0]);
         s.held = t.getBooleanOr("held", false);
         s.prep = t.getIntOr("prep", 0);
