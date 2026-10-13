@@ -408,5 +408,7 @@
   "strategy1.build.outpost": "Outpost",
   "strategy1.build.outpost.info": "Goes on foreign land next to yours. Put 1 soldier in it (choose a soldier, right click the outpost) and the province is yours once its garrison is beaten.",
   "strategy1.err.build_outpost": "An outpost goes wholly in a foreign province next to your land",
-  "strategy1.err.outpost_there": "You have an outpost here already"
+  "strategy1.err.outpost_there": "You have an outpost here already",
+  "strategy1.err.bridge_steep": "Too steep: a bridge climbs at most a block for each block of its length",
+  "strategy1.tip.rally": "right click the ground: gathering point"
 }
