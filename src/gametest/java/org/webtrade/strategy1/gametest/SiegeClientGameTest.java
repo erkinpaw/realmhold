@@ -160,6 +160,17 @@ public class SiegeClientGameTest implements FabricClientGameTest {
                 Actions.order(player(s), new Payloads.UnitOrder(foot.stream().mapToInt(SoldierEntity::getId).toArray(), Payloads.UnitOrder.MOVE, cx, 70, cz - 4, -1));
                 report(s, "ready");
             });
+            // the clock's pace (day): a day and a night five minutes each
+            long[] d0 = new long[1];
+            server.runOnServer(s -> d0[0] = s.overworld().getOverworldClockTime());
+            server.runCommand("gamerule advance_time true");
+            context.waitTicks(100);
+            server.runCommand("gamerule advance_time false");
+            server.runOnServer(s -> {
+                long dt = s.overworld().getOverworldClockTime() - d0[0];
+                log("day: the clock ran {} in 100 ticks; {} s left", dt, Waves.clock(s.overworld()));
+                if (dt < 215 || dt > 250) throw new AssertionError("the day clock's pace");
+            });
             context.waitTicks(20 * 12);
             look(context, cx, cz, 60, 200);
             context.takeScreenshot("siege_day");
@@ -182,6 +193,18 @@ public class SiegeClientGameTest implements FabricClientGameTest {
             server.runCommand("time set 14000");
             context.waitTicks(40);
             server.runOnServer(s -> report(s, "night falls"));
+            // the clock's pace (night): a day and a night five minutes each
+            long[] n0 = new long[1];
+            server.runOnServer(s -> n0[0] = s.overworld().getOverworldClockTime());
+            server.runCommand("gamerule advance_time true");
+            context.waitTicks(100);
+            server.runCommand("gamerule advance_time false");
+            server.runOnServer(s -> {
+                long dt = s.overworld().getOverworldClockTime() - n0[0];
+                log("night: the clock ran {} in 100 ticks; {} s left", dt, Waves.clock(s.overworld()));
+                if (dt < 150 || dt > 185) throw new AssertionError("the night clock's pace");
+            });
+
             look(context, cx, cz - 10, 70, 200);
             context.waitTicks(20 * 15);
             context.takeScreenshot("siege_wave_coming");
@@ -191,6 +214,15 @@ public class SiegeClientGameTest implements FabricClientGameTest {
             context.takeScreenshot("siege_battle");
             context.waitTicks(20 * 25);
             server.runOnServer(s -> report(s, "later"));
+            // halfway through the night: more of them
+            int[] before = new int[1];
+            server.runOnServer(s -> before[0] = Waves.alive());
+            server.runCommand("time set 18100");
+            context.waitTicks(40);
+            server.runOnServer(s -> {
+                log("halfway: {} of the dead before, {} after", before[0], Waves.alive());
+                if (Waves.alive() <= before[0]) throw new AssertionError("no more of the dead halfway through the night");
+            });
             context.takeScreenshot("siege_battle_later");
             // the fifth night's brute
             server.runOnServer(s -> {

@@ -316,6 +316,7 @@
   "strategy1.wave.dawn_title": "Рассвет",
   "strategy1.wave.survived": "Пережито ночей: %s",
   "strategy1.wave.brute": "Великан",
+  "strategy1.wave.more": "Подмога мертвецам: ещё %s!",
   "strategy1.wave.lost": "Мертвецы захватили провинцию %s!",
   "strategy1.wave.fallen": "%s пала после %s ночей.",
   "strategy1.engine.1": "Баллиста",
