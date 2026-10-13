@@ -43,6 +43,16 @@ public final class WaterPath {
         return 2;
     }
 
+    /** Room for a ship to lie in: 3 open water two blocks all round and deep, else as {@link #room}. */
+    private static int berth(ServerLevel level, int x, int z, double y) {
+        int r = room(level, x, z, y);
+        if (r < 2) return r;
+        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) if (!open(level, x + dx, z + dz, y)) return 2;
+        // (deep enough that a hull doesn't sit in the bottom)
+        BlockPos below = BlockPos.containing(x + 0.5, y - 2, z + 0.5);
+        return level.getFluidState(below).is(net.minecraft.tags.FluidTags.WATER) ? 3 : 2;
+    }
+
     /** The open water nearest a point (within r), roomy if it can be; null if none. */
     public static Vec3 nearestWater(ServerLevel level, Vec3 to, double y, int r) {
         Vec3 best = null;
@@ -50,9 +60,9 @@ public final class WaterPath {
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
                 int x = (int) Math.floor(to.x) + dx, z = (int) Math.floor(to.z) + dz;
-                int room = room(level, x, z, y);
+                int room = berth(level, x, z, y);
                 if (room == 0) continue;
-                double d = dx * dx + dz * dz + (room == 1 ? 9 : 0);
+                double d = dx * dx + dz * dz + (room == 1 ? 400 : room == 2 ? 60 : 0);
                 if (d < bestD) {
                     bestD = d;
                     best = new Vec3(x + 0.5, y, z + 0.5);
