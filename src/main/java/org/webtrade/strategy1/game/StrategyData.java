@@ -47,8 +47,12 @@ public final class StrategyData extends SavedData {
     public int turn;
     public int nextFaction = 1;
     public boolean generated;
-    /** The hex the map was laid out round (the world spawn). */
+    /** The hex the map was laid out round (the world spawn, or the keep's chosen place). */
     public long origin;
+    /** The world's first player is yet to choose where their keep stands (nothing is laid out till then). */
+    public boolean siteWanted;
+    /** Where the grid's hex (0, 0) is centred. */
+    public double gridX, gridZ;
 
     public static StrategyData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(TYPE);
@@ -125,6 +129,9 @@ public final class StrategyData extends SavedData {
         t.putInt("nextFaction", nextFaction);
         t.putBoolean("generated", generated);
         t.putLong("origin", origin);
+        t.putBoolean("site_wanted", siteWanted);
+        t.putDouble("grid_x", gridX);
+        t.putDouble("grid_z", gridZ);
         ListTag ps = new ListTag();
         for (Province p : provinces.values()) ps.add(p.save());
         t.put("provinces", ps);
@@ -176,6 +183,9 @@ public final class StrategyData extends SavedData {
         d.nextFaction = t.getIntOr("nextFaction", 1);
         d.generated = t.getBooleanOr("generated", false);
         d.origin = t.getLongOr("origin", 0);
+        d.siteWanted = t.getBooleanOr("site_wanted", false);
+        d.gridX = t.getDoubleOr("grid_x", 0);
+        d.gridZ = t.getDoubleOr("grid_z", 0);
         ListTag ps = t.getListOrEmpty("provinces");
         for (int i = 0; i < ps.size(); i++) {
             Province p = Province.load(ps.getCompoundOrEmpty(i));

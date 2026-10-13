@@ -28,6 +28,7 @@ public final class ClientState {
 
     public static void accept(Payloads.MapSync m) {
         map = m;
+        Hex.setOrigin(m.gridX(), m.gridZ());
         PROVINCES.clear();
         for (Payloads.ProvinceInfo p : m.provinces()) PROVINCES.put(p.key(), p);
         FACTIONS.clear();
@@ -57,6 +58,11 @@ public final class ClientState {
         revision++;
         landRevision++;
         landSig = 0;
+    }
+
+    /** The keep's place is still to be chosen (nothing laid out yet). */
+    public static boolean choosingSite() {
+        return map != null && map.site();
     }
 
     public static int me() {
