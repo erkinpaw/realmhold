@@ -31,12 +31,72 @@ final class MapTexture {
     static Identifier get() {
         if (ClientState.PROVINCES.isEmpty()) return null;
         long now = System.currentTimeMillis();
-        if (revision != ClientState.revision || texture == null || explored != org.webtrade.strategy1.client.Explored.revision && now - builtAt > 1500) build();
+        // the whole picture when the realms change; else only the land seen anew, now and then
+        if (revision != ClientState.landRevision || texture == null) build();
+        else if (!org.webtrade.strategy1.client.Explored.CHANGED.isEmpty() && now - builtAt > 700) touchUp();
         return ID;
     }
 
+    /** The cells seen anew since the last time, drawn into the picture (a cell of the seen land is a pixel). */
+    private static void touchUp() {
+        builtAt = System.currentTimeMillis();
+        var changed = org.webtrade.strategy1.client.Explored.CHANGED;
+        NativeImage img = texture.getPixels();
+        for (int i = 0; i < changed.size(); i++) {
+            long k = changed.getLong(i);
+            int cellX = (int) (k >> 32), cellZ = (int) k;
+            // (the pixel whose middle falls in that cell)
+            int x0 = Math.floorDiv(cellX * BPP - originX, BPP), z0 = Math.floorDiv(cellZ * BPP - originZ, BPP);
+            for (int x = x0 - 1; x <= x0 + 1; x++) {
+                if (x < 0 || x >= width || Math.floorDiv(originX + x * BPP + BPP / 2, BPP) != cellX) continue;
+                for (int z = z0 - 1; z <= z0 + 1; z++) {
+                    if (z < 0 || z >= height || Math.floorDiv(originZ + z * BPP + BPP / 2, BPP) != cellZ) continue;
+                    img.setPixel(x, z, 0xFF000000 | colour(x, z));
+                }
+            }
+        }
+        changed.clear();
+        texture.upload();
+    }
+
+    private static long keyAt(int x, int z) {
+        return Hex.at(originX + x * BPP + BPP / 2.0, originZ + z * BPP + BPP / 2.0).key();
+    }
+
+    /** One pixel of the picture: the land as seen (or the sketch), the realm's wash, the edges. */
+    private static int colour(int x, int z) {
+        long k = keyAt(x, z);
+        Payloads.ProvinceInfo p = ClientState.PROVINCES.get(k);
+        if (p == null) return ((x + z) & 4) == 0 ? 0xE4D2A6 : 0xD6C290;
+        Terrain t = Terrain.of(p.terrain());
+        int owner = t.land() ? ClientState.color(p.owner()) : -1;
+        int seen = org.webtrade.strategy1.client.Explored.colour(Math.floorDiv(originX + x * BPP + BPP / 2, BPP), Math.floorDiv(originZ + z * BPP + BPP / 2, BPP));
+        int rgb;
+        if (seen != 0) rgb = owner >= 0 ? mix(seen & 0xFFFFFF, owner, 0.28) : seen & 0xFFFFFF;
+        else {
+            rgb = owner >= 0 ? mix(t.color, owner, 0.55) : t.land() ? mix(t.color, 0xE4D2A6, 0.25) : t.color;
+            rgb = mix(rgb, 0xD8C7A0, 0.45);
+        }
+        boolean edge = false, border = false;
+        for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            int nx = x + d[0], nz = z + d[1];
+            if (nx < 0 || nz < 0 || nx >= width || nz >= height) continue;
+            long nk = keyAt(nx, nz);
+            if (nk == k) continue;
+            edge = true;
+            Payloads.ProvinceInfo n = ClientState.PROVINCES.get(nk);
+            int no = n == null || !Terrain.of(n.terrain()).land() ? -2 : n.owner();
+            int mo = t.land() ? p.owner() : -2;
+            if (no != mo && owner >= 0) border = true;
+        }
+        if (border) return mix(owner, 0x000000, 0.45);
+        if (edge) return mix(rgb, 0x3B2A1C, 0.22);
+        return rgb;
+    }
+
     private static void build() {
-        revision = ClientState.revision;
+        org.webtrade.strategy1.client.Explored.CHANGED.clear();
+        revision = ClientState.landRevision;
         explored = org.webtrade.strategy1.client.Explored.revision;
         builtAt = System.currentTimeMillis();
         double minX = Double.MAX_VALUE, minZ = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;

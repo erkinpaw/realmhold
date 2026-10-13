@@ -467,6 +467,20 @@ public class RtsScreen extends Screen {
     private record Pick(Vec3 ground, BlockPos block, Entity entity, Payloads.StructureInfo structure) {
     }
 
+    private Pick hovered;
+    private int hoverX = Integer.MIN_VALUE, hoverY, hoverAge;
+
+    /** What's under the mouse for the note by it: looked for again when the mouse has moved, or now and then. */
+    private Pick hoverPick(int mx, int my) {
+        if (hovered == null || mx != hoverX || my != hoverY || ++hoverAge > 6) {
+            hovered = pick(mx, my);
+            hoverX = mx;
+            hoverY = my;
+            hoverAge = 0;
+        }
+        return hovered;
+    }
+
     private Pick pick(double sx, double sy) {
         Vec3 from = minecraft.gameRenderer.mainCamera().position(), dir = ray(sx, sy), to = from.add(dir.scale(300));
         BlockHitResult block = minecraft.level.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE, ClipContext.Fluid.ANY, minecraft.player));
@@ -961,7 +975,9 @@ public class RtsScreen extends Screen {
     private void line(GuiGraphicsExtractor g, Vec3 a, Vec3 b, int color) {
         Vec3 pa = project(a), pb = project(b);
         if (pa == null || pb == null) return;
-        int n = (int) Math.max(1, Math.hypot(pb.x - pa.x, pb.y - pa.y) / 2);
+        // (off the screen altogether: nothing; and never more than so many dots, however near the camera is)
+        if (Math.max(pa.x, pb.x) < 0 || Math.min(pa.x, pb.x) > width || Math.max(pa.y, pb.y) < 0 || Math.min(pa.y, pb.y) > height) return;
+        int n = (int) Math.clamp(Math.hypot(pb.x - pa.x, pb.y - pa.y) / 2, 1, 60);
         for (int i = 0; i <= n; i++) {
             int x = (int) (pa.x + (pb.x - pa.x) * i / n), y = (int) (pa.y + (pb.y - pa.y) * i / n);
             g.fill(x - 1, y - 1, x + 1, y + 1, color);
@@ -1059,7 +1075,7 @@ public class RtsScreen extends Screen {
     private void reaches(GuiGraphicsExtractor g) {
         int n = 0;
         for (int id : SELECTED) {
-            if (!(minecraft.level.getEntity(id) instanceof SoldierEntity s) || n++ > 12) continue;
+            if (!(minecraft.level.getEntity(id) instanceof SoldierEntity s) || n++ > 4) continue;
             if (s.unit().heals()) ring(g, new Vec3(s.getX(), s.getY() + 0.1, s.getZ()), UnitType.HEAL_RADIUS, 0xA060FF80);
             if (!s.unit().ranged) continue;
             double r = s.isPassenger() ? 26 : StructureType.FIELD_REACH;
@@ -1214,14 +1230,15 @@ public class RtsScreen extends Screen {
         return new Vec3(p.x, y + 0.05, p.z);
     }
 
-    /** A ring on the ground. */
+    /** A ring on the ground: a few dots round it (as many however near the camera, so it costs little to draw). */
     private void ring(GuiGraphicsExtractor g, Vec3 c, double r, int color) {
-        Vec3 prev = null;
-        for (int i = 0; i <= 24; i++) {
-            double a = i * Math.PI * 2 / 24;
-            Vec3 p = new Vec3(c.x + Math.cos(a) * r, c.y, c.z + Math.sin(a) * r);
-            if (prev != null) line(g, prev, p, color);
-            prev = p;
+        int n = Math.clamp((int) (r * 2.5), 16, 72);
+        for (int i = 0; i < n; i++) {
+            double a = i * Math.PI * 2 / n;
+            Vec3 p = project(new Vec3(c.x + Math.cos(a) * r, c.y, c.z + Math.sin(a) * r));
+            if (p == null || p.x < -2 || p.x > width + 2 || p.y < -2 || p.y > height + 2) continue;
+            int x = (int) p.x, y = (int) p.y;
+            g.fill(x - 1, y - 1, x + 1, y + 1, color);
         }
     }
 
@@ -1233,11 +1250,15 @@ public class RtsScreen extends Screen {
             AABB b = o.aabb();
             double x = end.getX() + 0.5, z = end.getZ() + 0.5, tx = other.getX() + 0.5, tz = other.getZ() + 0.5;
             if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) continue;
+            // (a tower's body, under its top; its centre is the middle of its box)
+            int r = t == StructureType.TOWER_STONE ? 2 : t == StructureType.TOWER_WOOD ? 1 : t == StructureType.KEEP ? 4 : -1;
+            int cx = (int) Math.floor((b.minX + b.maxX) / 2), cz = (int) Math.floor((b.minZ + b.maxZ) / 2);
+            AABB body = r < 0 ? b : new AABB(cx - r, b.minY, cz - r, cx + r + 1, b.maxY, cz + r + 1);
             double len = Math.hypot(tx - x, tz - z);
             if (len < 1) return end;
             for (double step = 0; step <= len; step += 0.5) {
                 double px = x + (tx - x) * step / len, pz = z + (tz - z) * step / len;
-                if (px < b.minX || px > b.maxX || pz < b.minZ || pz > b.maxZ) return BlockPos.containing(px, end.getY(), pz);
+                if (px < body.minX || px > body.maxX || pz < body.minZ || pz > body.maxZ) return BlockPos.containing(px, end.getY(), pz);
             }
             return end;
         }
@@ -1252,7 +1273,7 @@ public class RtsScreen extends Screen {
     /** A unit or building under the mouse: its picture and health by it. */
     private void hovered(GuiGraphicsExtractor g, int mx, int my) {
         if (boxing || my > height - BAR || my < TOP || inMini(mx, my)) return;
-        Pick p = pick(mx, my);
+        Pick p = hoverPick(mx, my);
         Identifier sprite = null;
         ItemStack icon = ItemStack.EMPTY;
         String text;

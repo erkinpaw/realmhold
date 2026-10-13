@@ -241,7 +241,8 @@ final class Blueprints {
             }
         }
         walls(f, plan, -4, -4, 4, 4, 0, 0, d(Blocks.OAK_FENCE), d(Blocks.OAK_FENCE));
-        plan.put(f.at(0, 0, -4), f.turned(d(Blocks.OAK_FENCE_GATE).setValue(FenceGateBlock.FACING, Direction.NORTH)));
+        // (gaps in the fence on each side: the folk and soldiers can't open a gate)
+        for (int[] g : new int[][]{{0, -4}, {0, 4}, {-4, 0}, {4, 0}}) plan.put(f.at(g[0], 0, g[1]), d(Blocks.AIR));
         plan.put(f.at(-4, 1, -4), d(Blocks.HAY_BLOCK));
         plan.put(f.at(4, 1, 4), d(Blocks.COMPOSTER));
         plan.door = f.spot(0, 0, -7);
@@ -524,6 +525,8 @@ final class Blueprints {
         for (int[] c : cols) {
             for (int k = 0; k < (stone ? 2 : 1); k++) {
                 int x = c[0] + ox * k, z = c[1] + oz * k;
+                // (where a tower or the keep stands, the wall leans on it: no wall through it, nor on its top)
+                if (Structures.inBase(x, z)) continue;
                 int g = ground(level, x, z);
                 for (int y = 0; y <= height + 2; y++) {
                     BlockPos p = new BlockPos(x, g + y, z);

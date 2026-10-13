@@ -17,8 +17,11 @@ public final class ClientState {
     public static final Map<Integer, Payloads.FactionInfo> FACTIONS = new HashMap<>();
     public static Payloads.Hud hud;
     public static final Map<Integer, Payloads.StructureInfo> STRUCTURES = new java.util.LinkedHashMap<>();
-    /** Goes up with every new map (the map screen redraws its picture then). */
+    /** Goes up with every new map (the screens refresh their buttons then). */
     public static int revision;
+    /** Goes up only when the land changes hands or the realms change colour (the map's picture is drawn again then). */
+    public static int landRevision;
+    private static long landSig;
 
     private ClientState() {
     }
@@ -30,6 +33,14 @@ public final class ClientState {
         FACTIONS.clear();
         for (Payloads.FactionInfo f : m.factions()) FACTIONS.put(f.id(), f);
         revision++;
+        // (the map is sent again whenever anything at all changes: its picture only when who holds what does)
+        long sig = m.provinces().size();
+        for (Payloads.ProvinceInfo p : m.provinces()) sig = sig * 31 + p.key() * 7 + p.owner() * 131 + p.terrain();
+        for (Payloads.FactionInfo f : m.factions()) sig = sig * 31 + f.id() * 17 + color(f.id());
+        if (sig != landSig) {
+            landSig = sig;
+            landRevision++;
+        }
     }
 
     public static void structures(Payloads.StructureSync s) {
@@ -44,6 +55,8 @@ public final class ClientState {
         PROVINCES.clear();
         FACTIONS.clear();
         revision++;
+        landRevision++;
+        landSig = 0;
     }
 
     public static int me() {

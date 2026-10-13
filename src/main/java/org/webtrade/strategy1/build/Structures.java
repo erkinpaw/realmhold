@@ -245,8 +245,8 @@ public final class Structures {
         if (dep.left <= 0 && got > 0) {
             StrategyManager.tell(data().faction(mine.owner), Component.translatable("strategy1.msg.mine_empty", Component.translatable(mine.type.key()))
                     .withStyle(ChatFormatting.YELLOW));
+            dirty = true;
         }
-        dirty = true;
         return got;
     }
 
@@ -260,21 +260,38 @@ public final class Structures {
         return new AABB(b.minX, -2048, b.minZ, b.maxX, 2048, b.maxZ);
     }
 
+    /** The ground a tower or the keep stands on (its body, not its overhanging top), or its box for anything else. */
+    public static AABB base(StructureType type, AABB box, BlockPos origin) {
+        int r = type == StructureType.TOWER_STONE ? 2 : type == StructureType.TOWER_WOOD ? 1 : type == StructureType.KEEP ? 4 : -1;
+        if (r < 0 || origin == null) return box;
+        return new AABB(origin.getX() - r, -2048, origin.getZ() - r, origin.getX() + r + 1, 2048, origin.getZ() + r + 1);
+    }
+
+    /** Does a tower or the keep stand on this column? */
+    public static boolean inBase(int x, int z) {
+        for (Structure o : data().structures.values()) {
+            if (o.planned || !(o.type.tower() || o.type == StructureType.KEEP)) continue;
+            if (base(o.type, o.box(), o.origin).contains(x + 0.5, 0, z + 0.5)) return true;
+        }
+        return false;
+    }
+
     /**
-     * A wall's end put inside a tower, the keep or another wall: moved out to its side, towards the wall's other end,
-     * so the wall runs from it.
+     * A wall's end put on a tower, the keep or another wall: moved out to its side (right against a tower's body, under
+     * its top), towards the wall's other end, so the wall runs from it.
      */
     public static BlockPos snap(StrategyData d, BlockPos end, BlockPos other) {
         for (Structure o : d.structures.values()) {
             if (o.planned || !(o.type.tower() || o.type == StructureType.KEEP || o.type.wall())) continue;
             AABB b = flat(o.box());
+            AABB body = flat(base(o.type, o.box(), o.origin));
             if (!b.contains(end.getX() + 0.5, 0, end.getZ() + 0.5)) continue;
             double x = end.getX() + 0.5, z = end.getZ() + 0.5, tx = other.getX() + 0.5, tz = other.getZ() + 0.5;
             double len = Math.hypot(tx - x, tz - z);
             if (len < 1) return end;
             for (double step = 0; step <= len; step += 0.5) {
                 double px = x + (tx - x) * step / len, pz = z + (tz - z) * step / len;
-                if (!b.contains(px, 0, pz)) return BlockPos.containing(px, end.getY(), pz);
+                if (!body.contains(px, 0, pz)) return BlockPos.containing(px, end.getY(), pz);
             }
             return end;
         }
@@ -354,7 +371,7 @@ public final class Structures {
                 d.setDirty();
                 StrategyManager.tell(f, Component.translatable("strategy1.msg.built", Component.translatable(s.type.key())).withStyle(ChatFormatting.GREEN));
             }
-            if (ticks % 10 == 0) dirty = true;
+            if (ticks % 40 == 0) dirty = true;
         }
     }
 
