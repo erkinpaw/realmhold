@@ -56,25 +56,34 @@ public final class Payloads {
         }
     }
 
-    /** The whole map, as the player's realm sees it. */
-    public record MapSync(int me, int turn, List<FactionInfo> factions, List<ProvinceInfo> provinces) implements CustomPacketPayload {
+    /**
+     * The whole map, as the player's realm sees it; where its grid lies; whether the keep's place is still to be
+     * chosen (and the map not laid out till it is).
+     */
+    public record MapSync(int me, int turn, List<FactionInfo> factions, List<ProvinceInfo> provinces, boolean site, double gridX,
+                          double gridZ) implements CustomPacketPayload {
         public static final Type<MapSync> TYPE = new Type<>(Strategy1.id("map_sync"));
         public static final StreamCodec<FriendlyByteBuf, MapSync> CODEC = StreamCodec.of((b, m) -> {
             b.writeVarInt(m.me + 1);
             b.writeVarInt(m.turn);
+            b.writeBoolean(m.site);
+            b.writeDouble(m.gridX);
+            b.writeDouble(m.gridZ);
             b.writeVarInt(m.factions.size());
             for (FactionInfo f : m.factions) f.write(b);
             b.writeVarInt(m.provinces.size());
             for (ProvinceInfo p : m.provinces) p.write(b);
         }, b -> {
             int me = b.readVarInt() - 1, turn = b.readVarInt();
+            boolean site = b.readBoolean();
+            double gx = b.readDouble(), gz = b.readDouble();
             int nf = b.readVarInt();
             List<FactionInfo> fs = new ArrayList<>(nf);
             for (int i = 0; i < nf; i++) fs.add(FactionInfo.read(b));
             int np = b.readVarInt();
             List<ProvinceInfo> ps = new ArrayList<>(np);
             for (int i = 0; i < np; i++) ps.add(ProvinceInfo.read(b));
-            return new MapSync(me, turn, fs, ps);
+            return new MapSync(me, turn, fs, ps, site, gx, gz);
         });
 
         @Override
@@ -130,6 +139,20 @@ public final class Payloads {
     }
 
     /** The strategist's eye over a far point at once. */
+    /** Where the player wants their keep (the world's first player, before anything is laid out). */
+    public record ChooseSite(double x, double z) implements CustomPacketPayload {
+        public static final Type<ChooseSite> TYPE = new Type<>(Strategy1.id("choose_site"));
+        public static final StreamCodec<FriendlyByteBuf, ChooseSite> CODEC = StreamCodec.of((b, c) -> {
+            b.writeDouble(c.x);
+            b.writeDouble(c.z);
+        }, b -> new ChooseSite(b.readDouble(), b.readDouble()));
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record Jump(double x, double z) implements CustomPacketPayload {
         public static final Type<Jump> TYPE = new Type<>(Strategy1.id("jump"));
         public static final StreamCodec<FriendlyByteBuf, Jump> CODEC = StreamCodec.of((b, j) -> {

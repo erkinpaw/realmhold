@@ -861,11 +861,14 @@ public final class Structures {
     }
 
     /** A keep at a realm's capital (built at once when its land is first seen). */
+    /** How far south of its province's centre a capital's keep stands. */
+    public static final int KEEP_SOUTH = 7;
+
     public static void planKeep(StrategyData d, Faction f) {
         org.webtrade.strategy1.game.Province cap = d.province(f.capital);
         if (cap == null) return;
         for (Structure s : d.structures.values()) if (s.owner == f.id && s.type == StructureType.KEEP) return;
-        Structure k = new Structure(d.nextStructure++, StructureType.KEEP, f.id, BlockPos.containing(cap.hex.centerX(), 64, cap.hex.centerZ() + 7), null, 0);
+        Structure k = new Structure(d.nextStructure++, StructureType.KEEP, f.id, BlockPos.containing(cap.hex.centerX(), 64, cap.hex.centerZ() + KEEP_SOUTH), null, 0);
         k.planned = true;
         k.archers = 4;
         d.structures.put(k.id, k);

@@ -34,17 +34,27 @@ public final class MapGen {
     private MapGen() {
     }
 
+    /** The way a new world was chosen to be played (on this machine's new realm screen), taken in once. */
+    public static void adopt(StrategyData data) {
+        if (Mode.Pending.mode == null) return;
+        data.mode = Mode.Pending.mode;
+        data.realms = Mode.Pending.realms >= 0 ? Mode.Pending.realms : data.mode.realms;
+        data.coop = Mode.Pending.coop;
+        data.siteWanted = Mode.Pending.site;
+        Mode.Pending.mode = null;
+        Mode.Pending.realms = -1;
+        Mode.Pending.site = false;
+        data.touch();
+    }
+
+    /** The map round the world's spawn. */
     public static void generate(ServerLevel level, StrategyData data) {
-        // the way the world was chosen to be played (on this machine's new realm screen)
-        if (Mode.Pending.mode != null) {
-            data.mode = Mode.Pending.mode;
-            data.realms = Mode.Pending.realms >= 0 ? Mode.Pending.realms : data.mode.realms;
-            data.coop = Mode.Pending.coop;
-            Mode.Pending.mode = null;
-            Mode.Pending.realms = -1;
-        }
         BlockPos spawn = level.getRespawnData().pos();
-        Hex origin = Hex.at(spawn.getX(), spawn.getZ());
+        generate(level, data, Hex.at(spawn.getX(), spawn.getZ()));
+    }
+
+    /** The map round a hex. */
+    public static void generate(ServerLevel level, StrategyData data, Hex origin) {
         data.origin = origin.key();
         RandomSource random = RandomSource.create(level.getSeed() ^ 0x5EED_CAFEL);
         ChunkGenerator gen = level.getChunkSource().getGenerator();
@@ -180,6 +190,48 @@ public final class MapGen {
         }
     }
 
+    /** Where a keep may stand: dry land (as the world will make it, if it isn't made there yet). */
+    public static boolean dry(ServerLevel level, double x, double z) {
+        BlockPos at = BlockPos.containing(x, 0, z);
+        if (level.hasChunkAt(at)) {
+            BlockPos top = level.getHeightmapPos(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, at);
+            return level.getFluidState(top.below()).isEmpty() && level.getFluidState(top).isEmpty();
+        }
+        ChunkGenerator gen = level.getChunkSource().getGenerator();
+        return gen.getBaseHeight(at.getX(), at.getZ(), net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR_WG, level, level.getChunkSource().randomState())
+                >= gen.getBaseHeight(at.getX(), at.getZ(), net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG, level, level.getChunkSource().randomState());
+    }
+
+    /**
+     * The world's first player chose where their keep stands: the grid laid so that their capital's hex is centred
+     * just north of it (the keep stands a little south of its province's centre), the map laid out round it, the AI
+     * realms far enough off, and their realm founded there.
+     */
+    public static Faction foundAtSite(ServerLevel level, StrategyData data, UUID player, String name, double x, double z) {
+        data.gridX = x;
+        data.gridZ = z - org.webtrade.strategy1.build.Structures.KEEP_SOUTH;
+        Hex.setOrigin(data.gridX, data.gridZ);
+        data.provinces.clear();
+        data.factions.clear();
+        data.players.clear();
+        data.structures.clear();
+        data.nextFaction = 1;
+        data.nextStructure = 1;
+        data.forts = data.towns = data.deposits = false;
+        data.siteWanted = false;
+        Hex home = new Hex(0, 0);
+        generate(level, data, home);
+        Province p = data.province(home);
+        // (whatever the map made of it, it is land now, and the realm's)
+        if (!p.terrain.land()) {
+            Province land = new Province(home, Names.province(RandomSource.create(level.getSeed())), Terrain.PLAINS, Deposit.NONE);
+            data.provinces.put(home.key(), land);
+            p = land;
+        }
+        p.owner = Faction.NEUTRAL;
+        return found(data, player, name, p);
+    }
+
     /** A player's own realm, round the free land nearest to where they stand. */
     public static Faction foundPlayerRealm(ServerLevel level, StrategyData data, UUID player, String name, double x, double z) {
         Hex at = Hex.at(x, z);
@@ -220,6 +272,11 @@ public final class MapGen {
             }
         }
         if (best == null) return null;
+        return found(data, player, name, best);
+    }
+
+    /** A player's realm founded (or come back) with its capital in a province. */
+    private static Faction found(StrategyData data, UUID player, String name, Province best) {
         Faction existing = data.factionOf(player);
         Faction f;
         if (existing != null) {

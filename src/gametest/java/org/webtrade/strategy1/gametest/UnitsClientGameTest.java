@@ -124,8 +124,9 @@ public class UnitsClientGameTest implements FabricClientGameTest {
                 int lit = 0, torches = 0;
                 for (PeasantEntity p : s.overworld().getEntitiesOfClass(PeasantEntity.class, player(s).getBoundingBox().inflate(300), e -> e.faction() == me(s).id)) {
                     if (p.getOffhandItem().is(net.minecraft.world.item.Items.TORCH)) torches++;
-                    BlockPos at = p.blockPosition();
-                    for (int dy = 0; dy <= 2; dy++) if (s.overworld().getBlockState(at.above(dy)).is(Blocks.LIGHT)) lit++;
+                    // (the light follows them a few steps behind)
+                    for (BlockPos q : BlockPos.betweenClosed(p.blockPosition().offset(-4, -2, -4), p.blockPosition().offset(4, 3, 4)))
+                        if (s.overworld().getBlockState(q).is(Blocks.LIGHT)) lit++;
                 }
                 log("by night: {} with torches, {} lights by them", torches, lit);
                 if (torches == 0 || lit == 0) throw new AssertionError("no torches by night");
@@ -142,7 +143,8 @@ public class UnitsClientGameTest implements FabricClientGameTest {
             server.runOnServer(s -> {
                 int lit = 0;
                 for (PeasantEntity p : s.overworld().getEntitiesOfClass(PeasantEntity.class, player(s).getBoundingBox().inflate(300), e -> true)) {
-                    for (int dy = 0; dy <= 2; dy++) if (s.overworld().getBlockState(p.blockPosition().above(dy)).is(Blocks.LIGHT)) lit++;
+                    for (BlockPos q : BlockPos.betweenClosed(p.blockPosition().offset(-4, -2, -4), p.blockPosition().offset(4, 3, 4)))
+                        if (s.overworld().getBlockState(q).is(Blocks.LIGHT)) lit++;
                 }
                 log("by day: {} lights left", lit);
                 if (lit > 0) throw new AssertionError("torches still lit by day");
