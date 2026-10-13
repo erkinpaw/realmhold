@@ -251,6 +251,18 @@ public class ShipEntity extends UnitEntity {
     }
 
     /** Puts her soldiers ashore on the land nearest the point they were sent to. */
+    /** The land nearest her (within 24 blocks), to put her soldiers on; null if there's none. */
+    public Vec3 nearestLand(ServerLevel level) {
+        for (int r = 3; r <= 24; r += 2) {
+            for (int a = 0; a < 360; a += 15) {
+                double x = getX() + Math.cos(Math.toRadians(a)) * r, z = getZ() + Math.sin(Math.toRadians(a)) * r;
+                if (!level.hasChunkAt(BlockPos.containing(x, 64, z))) continue;
+                if (Double.isNaN(waterTop(level, x, getY() + 3, z))) return SoldierEntity.surface(level, x, z);
+            }
+        }
+        return null;
+    }
+
     private void unload(ServerLevel level, Vec3 to) {
         List<Entity> aboard = new ArrayList<>(getPassengers());
         if (aboard.isEmpty()) return;
@@ -295,7 +307,11 @@ public class ShipEntity extends UnitEntity {
         double d = Math.hypot(aim.x - getX(), aim.z - getZ());
         if (d > 32 || d < 5) return;
         reload = 80 + random.nextInt(20);
-        BoulderEntity.fire(level, this, position().add(getLookAngle().scale(2.5)).add(0, 1.2, 0),
+        // (from the deck engine, out over the rail towards what she shoots at)
+        Vec3 toward = new Vec3(aim.x - getX(), 0, aim.z - getZ()).normalize();
+        Vec3 from = position().add(toward.scale(1.8)).add(0, 2.0, 0);
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.POOF, from.x, from.y, from.z, 6, 0.3, 0.2, 0.3, 0.02);
+        BoulderEntity.fire(level, this, from,
                 aim.add(random.nextGaussian() * d * 0.05, 0, random.nextGaussian() * d * 0.05), 50, 8, 2.2F);
     }
 

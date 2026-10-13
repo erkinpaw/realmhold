@@ -23,7 +23,7 @@ final class SoldierGoals {
             case MOVE -> 8;
             case GUARD -> 30;
             case RAID -> 20;
-            case POSTED -> 30;
+            case POSTED -> Math.max(30, s.reach());
             default -> 10;
         };
     }
@@ -95,10 +95,10 @@ final class SoldierGoals {
             boolean sees = s.getSensing().hasLineOfSight(t);
             if (s.mode == SoldierEntity.Mode.POSTED || s.isPassenger()) {
                 // from a tower, a wall or a deck: no stepping about
-                if (sees && d < 32) s.shoot(t);
+                if (sees && d < s.reach()) s.shoot(t);
                 return;
             }
-            if (d > 18 || !sees) {
+            if (d > s.reach() || !sees) {
                 s.walkTo(t.position(), 1.1);
             } else {
                 s.getNavigation().stop();

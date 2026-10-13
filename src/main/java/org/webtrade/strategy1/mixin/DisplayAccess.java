@@ -15,6 +15,12 @@ public interface DisplayAccess {
     @Invoker("setPosRotInterpolationDuration")
     void strategy1$setPosRotInterpolationDuration(int ticks);
 
+    @Invoker("setTransformationInterpolationDuration")
+    void strategy1$setTransformationInterpolationDuration(int ticks);
+
+    @Invoker("setTransformationInterpolationDelay")
+    void strategy1$setTransformationInterpolationDelay(int ticks);
+
     @Invoker("setViewRange")
     void strategy1$setViewRange(float range);
 }

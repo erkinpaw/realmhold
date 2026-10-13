@@ -191,10 +191,10 @@
   "strategy1.build.port.info": "На берегу: строит корабли",
   "strategy1.build.tower_wood": "Деревянная башня",
   "strategy1.build.tower_wood.short": "Башня Д",
-  "strategy1.build.tower_wood.info": "До 2 лучников",
+  "strategy1.build.tower_wood.info": "До 4 лучников, бьют на 30 блоков. Можно поставить баллисту",
   "strategy1.build.tower_stone": "Каменная башня",
   "strategy1.build.tower_stone.short": "Башня К",
-  "strategy1.build.tower_stone.info": "До 4 лучников, прочная",
+  "strategy1.build.tower_stone.info": "До 8 лучников, бьют на 36 блоков. Баллиста, катапульта или жаровня",
   "strategy1.build.wall_wood": "Частокол",
   "strategy1.build.wall_wood.short": "Стена Д",
   "strategy1.build.wall_wood.info": "Два клика: начало и конец",
@@ -422,5 +422,8 @@
   "strategy1.err.gate_there": "Здесь уже есть ворота",
   "strategy1.err.deposit_taken": "На этой залежи уже стоит выработка",
   "strategy1.msg.mine_empty": "%s: залежь выработана",
-  "strategy1.tip.left": "осталось ~%s"
+  "strategy1.tip.left": "осталось ~%s",
+  "strategy1.err.no_shore": "Рядом нет берега",
+  "strategy1.rts.unload": "Высадить",
+  "strategy1.rts.unload_tip": "Корабль подойдёт к ближайшему берегу и высадит воинов. Или выберите воинов на корабле и ПКМ по берегу"
 }
