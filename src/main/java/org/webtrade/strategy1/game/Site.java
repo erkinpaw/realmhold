@@ -22,7 +22,7 @@ final class Site {
         RandomState rs = level.getChunkSource().randomState();
         int sea = gen.getSeaLevel();
         // where the keep goes (planKeep: a little south of the centre)
-        double kx = p.hex.centerX(), kz = p.hex.centerZ() + 7;
+        double kx = p.hex.centerX(), kz = p.hex.centerZ() + org.webtrade.strategy1.build.Structures.KEEP_SOUTH;
         int innerWater = 0, min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
         // (each look at the land costs the generator its noise: few looks, where they matter)
         for (int dx = -8; dx <= 8; dx += 8) {

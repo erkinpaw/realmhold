@@ -51,6 +51,8 @@ public enum Mode {
         public static Mode mode;
         public static int realms = -1;
         public static boolean coop = true;
+        /** The player chooses where their keep stands (and the map is laid out round it). */
+        public static boolean site;
 
         private Pending() {
         }

@@ -92,6 +92,7 @@ public class NewRealmScreen extends Screen {
         Mode.Pending.mode = mode;
         Mode.Pending.realms = realms;
         Mode.Pending.coop = coop;
+        Mode.Pending.site = true;
         String shown = name.getValue().isBlank() ? "Realm" : name.getValue().trim();
         String folder = shown.replaceAll("[^\\p{L}\\p{N} _-]", "_");
         while (minecraft.getLevelSource().levelExists(folder)) folder += "_";

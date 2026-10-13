@@ -99,6 +99,8 @@ public final class StrategyManager {
         ServerLifecycleEvents.SERVER_STARTED.register(s -> {
             server = s;
             data = StrategyData.get(s);
+            Hex.setOrigin(data.gridX, data.gridZ);
+            clockHeld = false;
             ticks = 0;
             // (the clock starts again with each world: what was timed by the last one mustn't hold this one back)
             lastSync = -20;
@@ -107,6 +109,7 @@ public final class StrategyManager {
         ServerLifecycleEvents.SERVER_STOPPED.register(s -> {
             server = null;
             data = null;
+            Hex.setOrigin(0, 0);
             CAPTURES.clear();
             MUSTERS.clear();
             RAIDS.clear();
@@ -131,7 +134,14 @@ public final class StrategyManager {
     private static void tick(MinecraftServer s) {
         if (data == null || server != s) return;
         ServerLevel level = s.overworld();
-        if (!data.generated) MapGen.generate(level, data);
+        if (!data.generated) {
+            MapGen.adopt(data);
+            if (!data.siteWanted) MapGen.generate(level, data);
+        }
+        if (data.siteWanted) {
+            awaitSite(s, level);
+            return;
+        }
         if (!data.forts) org.webtrade.strategy1.build.Structures.planForts(data);
         if (!data.towns && data.forts) org.webtrade.strategy1.build.Structures.planTowns(data);
         if (!data.deposits) org.webtrade.strategy1.build.Structures.planDeposits(data, level.getSeed());
@@ -157,6 +167,53 @@ public final class StrategyManager {
             lastSync = ticks;
             for (ServerPlayer p : s.getPlayerList().getPlayers()) sendMap(p);
         }
+    }
+
+    /** Nothing goes on till the keep's place is chosen: the clock held, the players told, the (empty) map sent. */
+    private static void awaitSite(MinecraftServer s, ServerLevel level) {
+        ticks++;
+        holdClock(level, true);
+        if (mapDirty && ticks - lastSync >= 20) {
+            mapDirty = false;
+            lastSync = ticks;
+            for (ServerPlayer p : s.getPlayerList().getPlayers()) sendMap(p);
+        }
+    }
+
+    /** Whether the world's clock is held still now (while the keep's place is chosen). */
+    private static boolean clockHeld;
+
+    /** The world's clock held still, or let go. */
+    private static void holdClock(ServerLevel level, boolean held) {
+        if (held == clockHeld) return;
+        clockHeld = held;
+        level.dimensionType().defaultClock().ifPresent(c -> level.getServer().clockManager().setPaused(c, held));
+    }
+
+    /** The world's first player puts their keep down: the map laid out round it, their realm founded there. */
+    public static void chooseSite(ServerPlayer p, double x, double z) {
+        if (data == null || !data.siteWanted) return;
+        ServerLevel level = server.overworld();
+        if (!MapGen.dry(level, x, z)) {
+            p.sendOverlayMessage(Component.translatable("strategy1.site.water").withStyle(ChatFormatting.RED));
+            return;
+        }
+        Faction f = MapGen.foundAtSite(level, data, p.getUUID(), p.getGameProfile().name(), x, z);
+        holdClock(level, false);
+        CAPTURES.clear();
+        MUSTERS.clear();
+        RAIDS.clear();
+        WHERE.clear();
+        org.webtrade.strategy1.build.Structures.clear();
+        Province cap = data.province(f.capital);
+        org.webtrade.strategy1.Strategy1.LOGGER.info("The keep's place chosen at {} {}: the map laid out round it, {} realms", (int) x, (int) z, data.factions.size());
+        ensureRealm(p);
+        p.sendSystemMessage(Component.translatable("strategy1.msg.founded", f.name(), cap.name,
+                (int) cap.hex.centerX(), (int) cap.hex.centerZ()).withStyle(ChatFormatting.GOLD));
+        level.playSound(null, BlockPos.containing(x, p.getY(), z), net.minecraft.sounds.SoundEvents.BELL_BLOCK, net.minecraft.sounds.SoundSource.BLOCKS, 1.5F, 1F);
+        data.touch();
+        mapChanged();
+        org.webtrade.strategy1.build.Structures.changed();
     }
 
     /** One of the night's dead stands at a province's centre: the dead take it, bit by bit, while nobody defends it. */
@@ -773,7 +830,7 @@ public final class StrategyManager {
         for (Province q : data.provinces.values()) {
             ps.add(new Payloads.ProvinceInfo(q.key(), q.name, q.terrain.ordinal(), q.deposit.ordinal(), q.owner, q.eco, q.fort, q.garrison));
         }
-        ServerPlayNetworking.send(p, new Payloads.MapSync(me, data.turn, fs, ps));
+        ServerPlayNetworking.send(p, new Payloads.MapSync(me, data.turn, fs, ps, data.siteWanted, data.gridX, data.gridZ));
     }
 
     private static void sendHud(ServerPlayer p) {
