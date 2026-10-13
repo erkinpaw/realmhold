@@ -205,6 +205,10 @@ public final class Payloads {
             return more.length < 7 ? -1 : more[6];
         }
 
+        public boolean open() {
+            return more.length >= 8 && more[7] == 1;
+        }
+
         void write(FriendlyByteBuf b) {
             b.writeVarIntArray(more);
             b.writeVarInt(engine);

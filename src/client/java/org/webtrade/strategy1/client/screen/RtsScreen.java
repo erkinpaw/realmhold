@@ -107,6 +107,8 @@ public class RtsScreen extends Screen {
 
     private double pressX, pressY;
     private boolean boxing;
+    /** Where the chosen structure was clicked (a wall: where a gate would go). */
+    private static BlockPos clicked;
     /** The enemy last pointed out to a tower (marked over its head). */
     private static int aimed = -1;
     private int seenRevision = -1, seenStructures = -1, seenSelection = -1;
@@ -190,7 +192,7 @@ public class RtsScreen extends Screen {
     private int sig() {
         int h = ClientState.STRUCTURES.size() * 7 + SELECTED.hashCode() * 31;
         Payloads.StructureInfo s = ClientState.STRUCTURES.get(structure);
-        if (s != null) h = h * 31 + (s.built() >= 100 ? 7 : 0) + s.archers() * 131 + s.owner() * 1009;
+        if (s != null) h = h * 31 + (s.built() >= 100 ? 7 : 0) + s.archers() * 131 + s.owner() * 1009 + s.gate() * 7919;
         for (Payloads.StructureInfo i : ClientState.STRUCTURES.values()) if (i.owner() == ClientState.me() && i.built() >= 100) h += i.type() * 17 + 1;
         Payloads.Hud hud = ClientState.hud;
         if (hud != null) h += (hud.idle() > 0 ? 3 : 0);
@@ -397,6 +399,16 @@ public class RtsScreen extends Screen {
                         st.engine() != e && canPay(me, cost), () -> structureAction(st.id(), Payloads.StructureAction.UPGRADE, en)).chosen(st.engine() == e);
             }
             i++;
+        }
+        if (t.wall() && built && clicked != null) {
+            int dx = clicked.getX() - st.box()[0], dz = clicked.getZ() - st.box()[2];
+            add(i++, Icons.of("gate"), new IconButton.Info(Component.translatable("strategy1.rts.gate_make"), StructureType.GATE.cost(3),
+                    Component.translatable("strategy1.rts.gate_make_tip"), List.of(Component.translatable("strategy1.build.gate.info").withStyle(ChatFormatting.GRAY))),
+                    canPay(me, StructureType.GATE.cost(3)), () -> structureAction(st.id(), Payloads.StructureAction.GATE, Payloads.StructureAction.pack(dx, dz)));
+        }
+        if (t == StructureType.GATE && built) {
+            add(i++, Icons.of("gate"), new IconButton.Info(Component.translatable("strategy1.rts.gate_hold"), null, Component.translatable("strategy1.rts.gate_hold_tip")),
+                    true, () -> structureAction(st.id(), Payloads.StructureAction.GATE, 0)).chosen(st.gate() == 1);
         }
         if (t.manned()) {
             add(i++, Icons.UNMAN, new IconButton.Info(Component.translatable("strategy1.rts.unman"), null, Component.translatable("strategy1.rts.unman_tip")),
@@ -690,7 +702,10 @@ public class RtsScreen extends Screen {
                 if (mine(p.entity)) {
                     if (add && SELECTED.contains(p.entity.getId())) SELECTED.remove(p.entity.getId());
                     else SELECTED.add(p.entity.getId());
-                } else if (p.structure != null && !add) structure = p.structure.id();
+                } else if (p.structure != null && !add) {
+                    structure = p.structure.id();
+                    clicked = p.block;
+                }
             } else {
                 for (UnitEntity s : unitsNear()) {
                     if (!mine(s) || s.isPassenger()) continue;
