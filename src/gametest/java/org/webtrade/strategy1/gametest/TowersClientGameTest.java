@@ -124,6 +124,31 @@ public class TowersClientGameTest implements FabricClientGameTest {
                 if (manned != 8) throw new AssertionError("a stone tower holds 8");
             });
             context.waitTicks(40);
+            // the engines close up, loaded
+            double[] seats = new double[4];
+            server.runOnServer(s -> {
+                Structure w = StrategyData.get(s).structures.get(ids[0]), st = StrategyData.get(s).structures.get(ids[1]);
+                seats[0] = w.origin.getX() + 0.5;
+                seats[1] = w.origin.getZ() + 0.5;
+                seats[2] = st.origin.getX() + 0.5;
+                seats[3] = st.origin.getZ() + 0.5;
+            });
+            context.runOnClient(mc -> {
+                RtsScreen.choose(Set.of(), -1);
+                mc.gui.setScreen(new RtsScreen());
+                Rts.jump(seats[0], seats[1]);
+                Rts.distance = 7;
+                Rts.yaw = 300;
+            });
+            context.waitTicks(30);
+            context.takeScreenshot("engine_ballista");
+            context.runOnClient(mc -> {
+                Rts.jump(seats[2], seats[3]);
+                Rts.distance = 8;
+                Rts.yaw = 240;
+            });
+            context.waitTicks(30);
+            context.takeScreenshot("engine_catapult");
             // the engines as models, shooting at the dead
             int[] dead = new int[2];
             server.runOnServer(s -> {
@@ -166,7 +191,7 @@ public class TowersClientGameTest implements FabricClientGameTest {
                     a.order(SoldierEntity.Mode.HOLD, a.position());
                     bowmen.add(a.getId());
                 }
-                Zombie z = zombie(s.overworld(), cx + 16, cz + 30);
+                Zombie z = zombie(s.overworld(), cx + 30, cz + 30);
                 z.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(60);
                 z.setHealth(60);
                 foe[0] = z.getId();
@@ -175,7 +200,7 @@ public class TowersClientGameTest implements FabricClientGameTest {
             context.runOnClient(mc -> {
                 RtsScreen.choose(new HashSet<>(bowmen), -1);
                 mc.gui.setScreen(new RtsScreen());
-                Rts.jump(cx + 10, cz + 26);
+                Rts.jump(cx + 17, cz + 26);
                 Rts.distance = 30;
                 Rts.yaw = 0;
             });
