@@ -182,8 +182,31 @@ public final class Payloads {
     }
 
     /** A structure as the players see it: kind, holder, box, strength, how far built, archers on it. */
-    public record StructureInfo(int id, int type, int owner, int[] box, int hp, int maxHp, int built, int archers, int posts, int engine) {
+    /**
+     * A structure as the client sees it. {@code more}: where its new units come out (x, y, z), its gathering point
+     * (x, z), what's left to dig there (or −1), its gate (−1 none, 0 shut, 1 open by hand) — {@link #NONE} where there's none.
+     */
+    public record StructureInfo(int id, int type, int owner, int[] box, int hp, int maxHp, int built, int archers, int posts, int engine, int[] more) {
+        public static final int NONE = Integer.MIN_VALUE;
+
+        public net.minecraft.world.phys.Vec3 door() {
+            return more.length < 3 || more[0] == NONE ? null : new net.minecraft.world.phys.Vec3(more[0] + 0.5, more[1], more[2] + 0.5);
+        }
+
+        public net.minecraft.world.phys.Vec3 rally() {
+            return more.length < 5 || more[3] == NONE ? null : new net.minecraft.world.phys.Vec3(more[3] + 0.5, 0, more[4] + 0.5);
+        }
+
+        public int left() {
+            return more.length < 6 ? -1 : more[5];
+        }
+
+        public int gate() {
+            return more.length < 7 ? -1 : more[6];
+        }
+
         void write(FriendlyByteBuf b) {
+            b.writeVarIntArray(more);
             b.writeVarInt(engine);
             b.writeVarInt(id);
             b.writeVarInt(type);
@@ -197,9 +220,10 @@ public final class Payloads {
         }
 
         static StructureInfo read(FriendlyByteBuf b) {
+            int[] more = b.readVarIntArray();
             int engine = b.readVarInt();
             return new StructureInfo(b.readVarInt(), b.readVarInt(), b.readVarInt(), b.readVarIntArray(), b.readVarInt(), b.readVarInt(), b.readVarInt(),
-                    b.readVarInt(), b.readVarInt(), engine);
+                    b.readVarInt(), b.readVarInt(), engine, more);
         }
 
         public net.minecraft.world.phys.AABB aabb() {
@@ -246,7 +270,16 @@ public final class Payloads {
 
     /** Something done with a structure: make a unit there, take an archer down, pull it down. */
     public record StructureAction(int id, int action, int arg) implements CustomPacketPayload {
-        public static final int MAKE = 1, UNMAN = 2, DEMOLISH = 3, UPGRADE = 4, SELL = 5, BUY = 6, CARAVAN = 7, AIM = 8;
+        public static final int MAKE = 1, UNMAN = 2, DEMOLISH = 3, UPGRADE = 4, SELL = 5, BUY = 6, CARAVAN = 7, AIM = 8, RALLY = 9, GATE = 10;
+
+        /** A gathering point as RALLY's arg: its offset from the structure (each in −2048..2047). */
+        public static int pack(int dx, int dz) {
+            return ((Math.clamp(dx, -2048, 2047) + 2048) << 12) | (Math.clamp(dz, -2048, 2047) + 2048);
+        }
+
+        public static int[] unpack(int v) {
+            return new int[]{((v >> 12) & 4095) - 2048, (v & 4095) - 2048};
+        }
         /** What MAKE makes: soldiers 0–4 (barracks), siege 10–11 (workshop), ships 20–21 (port). */
         public static final int CATAPULT = 10, TREBUCHET = 11, TRANSPORT = 20, WARSHIP = 21;
         public static final Type<StructureAction> TYPE = new Type<>(Strategy1.id("structure_action"));
