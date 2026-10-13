@@ -99,8 +99,38 @@ public class PlacementClientGameTest implements FabricClientGameTest {
                 log("tower box x {}..{} z {}..{}; wall from {} to {}", b.minX, b.maxX, b.minZ, b.maxZ, wall == null ? "-" : wall.origin.toShortString(),
                         wall == null ? "-" : wall.end.toShortString());
                 if (err != null || wall == null) throw new AssertionError("no wall from the tower: " + err);
-                double gap = wall.origin.getX() + 0.5 - b.maxX;
-                if (gap < 0 || gap > 1.5) throw new AssertionError("the wall doesn't start at the tower's side: " + gap);
+                // right against the tower's body (under its platform), and none of it on the tower
+                double gap = wall.origin.getX() + 0.5 - (tower.origin.getX() + 2);
+                if (gap < 0 || gap > 1) throw new AssertionError("the wall doesn't start at the tower's side: " + gap);
+                for (long p : wall.pos) {
+                    BlockPos q = BlockPos.of(p);
+                    if (Math.abs(q.getX() - tower.origin.getX()) <= 1 && Math.abs(q.getZ() - tower.origin.getZ()) <= 1 && !wall.palette.isEmpty()) {
+                        throw new AssertionError("wall blocks on the tower at " + q.toShortString());
+                    }
+                }
+            });
+
+            // a soldier on a farm walks off it (the fence has gaps)
+            int[] farmer = new int[1];
+            double[] fc = new double[2];
+            server.runOnServer(s -> {
+                for (int[] o : new int[][]{{-24, -18}, {-26, 14}, {26, 18}, {0, 30}}) if (build(s, StructureType.FARM, cx + o[0], cz + o[1], 0, 0) == null) break;
+            });
+            server.waitFor(s -> last(s, StructureType.FARM) != null && last(s, StructureType.FARM).built(), 20 * 30);
+            server.runOnServer(s -> {
+                Structure farm = last(s, StructureType.FARM);
+                fc[0] = farm.origin.getX() + 0.5;
+                fc[1] = farm.origin.getZ() + 0.5;
+                SoldierEntity m = SoldierEntity.spawn(s.overworld(), UnitType.MILITIA, me(s).id, me(s).color, new Vec3(fc[0] + 2, 0, fc[1] + 2), UnitEntity.Role.ARMY);
+                farmer[0] = m.getId();
+                m.order(SoldierEntity.Mode.MOVE, SoldierEntity.surface(s.overworld(), fc[0] + 14, fc[1] + 14));
+            });
+            context.waitTicks(20 * 15);
+            server.runOnServer(s -> {
+                var m = s.overworld().getEntity(farmer[0]);
+                double d = m == null ? 0 : Math.hypot(m.getX() - fc[0], m.getZ() - fc[1]);
+                log("the soldier off the farm: {} blocks from its middle", (int) d);
+                if (d < 7) throw new AssertionError("stuck on the farm");
             });
 
             // 3. a bridge down a slope
@@ -163,7 +193,7 @@ public class PlacementClientGameTest implements FabricClientGameTest {
             });
             context.waitTicks(20 * 15);
             server.runOnServer(s -> {
-                var men = s.overworld().getEntitiesOfClass(SoldierEntity.class, player(s).getBoundingBox().inflate(300), e -> e.faction() == me(s).id && e.role == UnitEntity.Role.ARMY);
+                var men = s.overworld().getEntitiesOfClass(SoldierEntity.class, player(s).getBoundingBox().inflate(300), e -> e.faction() == me(s).id && e.role == UnitEntity.Role.ARMY && e.getId() != farmer[0]);
                 for (SoldierEntity m : men) log("soldier at {} ({} from the rally)", m.blockPosition().toShortString(), (int) Math.hypot(m.getX() - rally[0], m.getZ() - rally[1]));
                 if (men.isEmpty() || men.stream().anyMatch(m -> Math.hypot(m.getX() - rally[0], m.getZ() - rally[1]) > 5)) throw new AssertionError("not at the rally");
             });
