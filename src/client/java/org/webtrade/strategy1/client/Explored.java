@@ -19,6 +19,8 @@ public final class Explored {
     private static final Long2LongOpenHashMap SEEN = new Long2LongOpenHashMap();
     /** Goes up as more land is seen (the map redraws its picture then, not too often). */
     public static int revision;
+    /** The cells seen anew (or changed) since the map last looked: it redraws just those. */
+    public static final it.unimi.dsi.fastutil.longs.LongArrayList CHANGED = new it.unimi.dsi.fastutil.longs.LongArrayList();
     private static long tick;
 
     private Explored() {
@@ -27,6 +29,7 @@ public final class Explored {
     public static void clear() {
         COLOURS.clear();
         SEEN.clear();
+        CHANGED.clear();
         revision++;
     }
 
@@ -74,7 +77,9 @@ public final class Explored {
                 int north = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z - CELL) - 1;
                 MapColor.Brightness b = y > north ? MapColor.Brightness.HIGH : y < north ? MapColor.Brightness.LOW : MapColor.Brightness.NORMAL;
                 if (!level.getFluidState(p).isEmpty()) b = (y + x / 3 + z / 5) % 2 == 0 ? MapColor.Brightness.NORMAL : MapColor.Brightness.HIGH;
-                COLOURS.put(key(Math.floorDiv(x, CELL), Math.floorDiv(z, CELL)), c.calculateARGBColor(b) | 0xFF000000);
+                long k = key(Math.floorDiv(x, CELL), Math.floorDiv(z, CELL));
+                int col = c.calculateARGBColor(b) | 0xFF000000;
+                if (COLOURS.put(k, col) != col && CHANGED.size() < 200_000) CHANGED.add(k);
             }
         }
     }
