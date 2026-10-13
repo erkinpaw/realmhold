@@ -316,6 +316,7 @@
   "strategy1.wave.dawn_title": "Dawn",
   "strategy1.wave.survived": "Nights survived: %s",
   "strategy1.wave.brute": "Brute",
+  "strategy1.wave.more": "More of the dead come: %s!",
   "strategy1.wave.lost": "The dead have taken %s!",
   "strategy1.wave.fallen": "%s has fallen after %s nights.",
   "strategy1.engine.1": "Ballista",

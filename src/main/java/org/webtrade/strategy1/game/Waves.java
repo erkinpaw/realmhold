@@ -43,14 +43,21 @@ import java.util.Set;
  * first, bombers that run for the walls and blow them open, skeletons, spiders, creepers, witches, ravagers, and a
  * great brute every fifth night). They fight the realm's people, batter its walls
  * and buildings in their way and take the provinces they stand in. The realm's far lands are besieged unseen: those
- * with too few defenders fall. At dawn the dead burn and the rest are gone.
+ * with too few defenders fall; halfway through the night more of them come from another side. At dawn the dead burn
+ * and the rest are gone. A day and a night are five minutes each (the world's clock runs faster for it).
  */
 public final class Waves {
 
     public static final String TAG = "s1wave";
     private static final Set<Mob> WAVE = new HashSet<>();
-    private static boolean night;
+    private static boolean night, reinforced;
     private static int dawnTimer = -1;
+    /** The clock's pace last set (NaN: not yet, this world). */
+    private static float pace = Float.NaN;
+
+    /** The siege's day and night, in seconds; the clock's dusk and dawn. */
+    public static final int DAY_SECONDS = 300, NIGHT_SECONDS = 300;
+    private static final long DUSK = 13000, DAWN = 23000;
 
     private Waves() {
     }
@@ -58,7 +65,22 @@ public final class Waves {
     public static void clear() {
         WAVE.clear();
         night = false;
+        reinforced = false;
         dawnTimer = -1;
+        pace = Float.NaN;
+    }
+
+    /** How fast the clock runs, by day or by night, for each to last its five minutes. */
+    private static float rate(boolean dark) {
+        return dark ? (DAWN - DUSK) / (NIGHT_SECONDS * 20F) : (24000 - (DAWN - DUSK)) / (DAY_SECONDS * 20F);
+    }
+
+    /** The world's clock set to the siege's pace (the sky and the sun go with it). */
+    private static void pace(ServerLevel level, boolean dark) {
+        float want = rate(dark);
+        if (want == pace) return;
+        level.dimensionType().defaultClock().ifPresent(c -> level.getServer().clockManager().setRate(c, want));
+        pace = want;
     }
 
     public static int alive() {
@@ -73,19 +95,28 @@ public final class Waves {
     /** Seconds to the night (positive), or into it (negative). */
     public static int clock(ServerLevel level) {
         long t = level.getOverworldClockTime() % 24000;
-        if (t >= 13000 && t < 23000) return -(int) ((23000 - t) / 20);
-        long to = t < 13000 ? 13000 - t : 24000 - t + 13000;
-        return (int) (to / 20);
+        boolean dark = t >= DUSK && t < DAWN;
+        long left = dark ? DAWN - t : t < DUSK ? DUSK - t : 24000 - t + DUSK;
+        int s = (int) (left / (20 * rate(dark)));
+        return dark ? -s : s;
     }
 
     /** Once a second (in the siege mode). */
     public static void second(ServerLevel level, StrategyData data) {
         long t = level.getOverworldClockTime() % 24000;
-        boolean dark = t >= 13000 && t < 23000;
+        boolean dark = t >= DUSK && t < DAWN;
+        pace(level, dark);
         if (dark && !night) start(level, data);
+        // halfway through the night: more of them, from another side
+        if (dark && night && !reinforced && t >= (DUSK + DAWN) / 2) {
+            reinforced = true;
+            reinforce(level, data);
+        }
         if (!dark && night) {
             night = false;
             dawnTimer = 45;
+            // (the sun takes them all, helmets or not)
+            for (Mob m : WAVE) if (m.isAlive()) m.igniteForSeconds(10);
             StrategyManager.announce(Component.translatable("strategy1.wave.dawn", data.wave).withStyle(ChatFormatting.GOLD), true);
             for (ServerPlayer p : level.players()) StrategyManager.title(p, Component.translatable("strategy1.wave.dawn_title").withStyle(ChatFormatting.GOLD),
                     Component.translatable("strategy1.wave.survived", data.wave));
@@ -108,6 +139,7 @@ public final class Waves {
     /** Night falls: the wave of the night comes, at the keep, and the far lands are besieged. */
     public static void start(ServerLevel level, StrategyData data) {
         night = true;
+        reinforced = false;
         dawnTimer = -1;
         data.wave++;
         data.touch();
@@ -116,17 +148,9 @@ public final class Waves {
             if (!f.player() || !f.alive) continue;
             Structure keep = Structures.nearest(f.id, StructureType.KEEP, Vec3.ZERO);
             if (keep == null) continue;
-            int lands = data.owned(f.id).size();
-            int count = Math.min(90, 3 + n * 3 + lands);
             Vec3 c = keep.center();
             RandomSource r = level.getRandom();
-            int made = 0;
-            for (int i = 0; i < count * 3 && made < count; i++) {
-                double a = r.nextDouble() * Math.PI * 2, d = 55 + r.nextDouble() * 30;
-                Vec3 at = SoldierEntity.surface(level, c.x + Math.cos(a) * d, c.z + Math.sin(a) * d);
-                if (!level.hasChunkAt(BlockPos.containing(at)) || !level.getFluidState(BlockPos.containing(at).below()).isEmpty()) continue;
-                if (spawn(level, kind(n, made, r), at, c, n) != null) made++;
-            }
+            int made = come(level, c, count(data, f, n), n, r.nextDouble() * Math.PI * 2, Math.PI * 2);
             // the boss of every fifth night
             if (n % 5 == 0) {
                 double a = r.nextDouble() * Math.PI * 2;
@@ -151,6 +175,44 @@ public final class Waves {
             }
             // (the first nights: what the new kinds of the dead are, and how to meet them)
             if (n <= 2) StrategyManager.tell(f, Component.translatable("strategy1.wave.kinds").withStyle(ChatFormatting.YELLOW));
+        }
+    }
+
+    /** How many of the dead come at a realm on a night: more each night, and more the more land it holds. */
+    private static int count(StrategyData data, Faction f, int n) {
+        return Math.min(120, 5 + n * 4 + data.owned(f.id).size());
+    }
+
+    /**
+     * The dead come out of the dark round the keep (within an arc of so many radians about a bearing, a ring 55..85
+     * blocks out); how many came.
+     */
+    private static int come(ServerLevel level, Vec3 c, int count, int n, double bearing, double arc) {
+        RandomSource r = level.getRandom();
+        int made = 0;
+        for (int i = 0; i < count * 3 && made < count; i++) {
+            double a = bearing + (r.nextDouble() - 0.5) * arc, d = 55 + r.nextDouble() * 30;
+            Vec3 at = SoldierEntity.surface(level, c.x + Math.cos(a) * d, c.z + Math.sin(a) * d);
+            if (!level.hasChunkAt(BlockPos.containing(at)) || !level.getFluidState(BlockPos.containing(at).below()).isEmpty()) continue;
+            if (spawn(level, kind(n, made, r), at, c, n) != null) made++;
+        }
+        return made;
+    }
+
+    /** Halfway through the night: half as many again, all from one side, at each realm's keep. */
+    static void reinforce(ServerLevel level, StrategyData data) {
+        int n = data.wave;
+        for (Faction f : data.factions.values()) {
+            if (!f.player() || !f.alive) continue;
+            Structure keep = Structures.nearest(f.id, StructureType.KEEP, Vec3.ZERO);
+            if (keep == null) continue;
+            int made = come(level, keep.center(), count(data, f, n) / 2, n, level.getRandom().nextDouble() * Math.PI * 2, Math.PI / 2);
+            if (made == 0) continue;
+            for (ServerPlayer p : level.players()) {
+                if (data.factionIdOf(p.getUUID()) != f.id) continue;
+                p.sendOverlayMessage(Component.translatable("strategy1.wave.more", made).withStyle(ChatFormatting.DARK_RED));
+                level.playSound(null, p.blockPosition(), SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 1.2F, 0.6F);
+            }
         }
     }
 
@@ -180,12 +242,20 @@ public final class Waves {
         m.snapTo(at.x, at.y, at.z, level.getRandom().nextFloat() * 360, 0);
         m.setPersistenceRequired();
         m.addTag(TAG);
-        // the dead are a little tougher every night, and keep their heads out of the sun until dawn
+        // the dead are tougher every night: more of them to kill, harder blows, a little quicker; helmets from the third
+        // night, more armour later (none of it dropped)
         var hp = m.getAttribute(Attributes.MAX_HEALTH);
         if (hp != null) {
-            hp.setBaseValue(hp.getBaseValue() * (1 + 0.06 * n));
+            hp.setBaseValue(hp.getBaseValue() * (1.15 + 0.1 * n));
             m.setHealth(m.getMaxHealth());
         }
+        var hit = m.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (hit != null) hit.setBaseValue(hit.getBaseValue() * (1.1 + 0.08 * n));
+        var speed = m.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null) speed.setBaseValue(speed.getBaseValue() * Math.min(1.3, 1 + 0.03 * n));
+        if (n >= 3 && m.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) m.setItemSlot(EquipmentSlot.HEAD, new ItemStack(n >= 6 ? Items.IRON_HELMET : Items.CHAINMAIL_HELMET));
+        if (n >= 5 && level.getRandom().nextInt(3) == 0) m.setItemSlot(EquipmentSlot.CHEST, new ItemStack(n >= 8 ? Items.IRON_CHESTPLATE : Items.CHAINMAIL_CHESTPLATE));
+        for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST}) m.setDropChance(slot, 0);
         var follow = m.getAttribute(Attributes.FOLLOW_RANGE);
         if (follow != null) follow.setBaseValue(48);
         if (type == EntityTypes.SKELETON || type == EntityTypes.STRAY) m.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
