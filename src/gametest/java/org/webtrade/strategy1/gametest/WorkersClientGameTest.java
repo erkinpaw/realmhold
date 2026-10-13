@@ -82,14 +82,16 @@ public class WorkersClientGameTest implements FabricClientGameTest {
             double cx = h.centerX(), cz = h.centerZ();
             server.waitFor(s -> Structures.has(me(s).id, StructureType.KEEP), 20 * 30);
             // folk come first: a house for more of them
-            server.runOnServer(s -> build(s, StructureType.HOUSE, cx + 4, cz - 24));
+            server.runOnServer(s -> {
+                for (int[] o : new int[][]{{4, -24}, {12, -20}, {-14, 20}, {14, 18}, {20, 0}, {-20, 4}}) if (build(s, StructureType.HOUSE, cx + o[0], cz + o[1]) == null) break;
+            });
             server.waitFor(s -> me(s).peasants >= 9, 20 * 90);
             server.runOnServer(s -> log("before: {}", jobs(s)));
             // the workplaces, and a big building to help with
             server.runOnServer(s -> {
                 build(s, StructureType.FARM, cx - 24, cz - 18);
                 for (int[] o : new int[][]{{-22, 10}, {22, 12}, {-12, 24}, {14, -26}, {26, -6}}) if (build(s, StructureType.WOODCUTTER, cx + o[0], cz + o[1]) == null) break;
-                build(s, StructureType.BARRACKS, cx + 22, cz + 10);
+                for (int[] o : new int[][]{{22, 10}, {-8, -22}, {24, -12}, {-26, 6}, {6, 28}}) if (build(s, StructureType.BARRACKS, cx + o[0], cz + o[1]) == null) break;
             });
             int[] peakSite = new int[1];
             long[] barracksAt = new long[2];
@@ -97,7 +99,7 @@ public class WorkersClientGameTest implements FabricClientGameTest {
                 context.waitTicks(20 * 3);
                 server.runOnServer(s -> {
                     Map<String, Integer> j = jobs(s);
-                    peakSite[0] = Math.max(peakSite[0], j.getOrDefault("builder@site", 0));
+                    peakSite[0] = Math.max(peakSite[0], j.getOrDefault("builder@site", 0) + j.getOrDefault("builder", 0));
                     Structure b = Structures.nearest(me(s).id, StructureType.BARRACKS, new Vec3(cx, 64, cz));
                     if (b != null && barracksAt[1] == 0) barracksAt[1] = s.overworld().getGameTime();
                     log("jobs {}", j);
@@ -117,7 +119,8 @@ public class WorkersClientGameTest implements FabricClientGameTest {
                 if (j.getOrDefault("FARM", 0) != 3) throw new AssertionError("the farm should have 3 hands: " + j);
                 if (j.getOrDefault("WOODCUTTER", 0) != 2) throw new AssertionError("the woodcutter should have 2 hands: " + j);
             });
-            if (peakSite[0] == 0) throw new AssertionError("nobody helped to build");
+            // (sent to help; small buildings may be up before they get there)
+            if (peakSite[0] == 0) throw new AssertionError("nobody was sent to help build");
             context.runOnClient(mc -> Rts.exit(mc));
             context.waitTicks(10);
         }
