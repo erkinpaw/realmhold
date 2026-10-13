@@ -135,7 +135,7 @@ public class StrategyClientGameTest implements FabricClientGameTest {
                 // the quarry by its stone
                 Structure dep = Structures.depositNear(StructureType.DEPOSIT_STONE, new Vec3(cx, 64, cz), 400);
                 boolean quarried = false;
-                if (dep != null) for (int[] o : new int[][]{{8, 0}, {-8, 0}, {0, 8}, {0, -8}, {7, 7}, {-7, -7}, {7, -7}, {-7, 7}}) {
+                if (dep != null) for (int[] o : new int[][]{{0, 0}, {8, 0}, {-8, 0}, {0, 8}, {0, -8}, {7, 7}, {-7, -7}, {7, -7}, {-7, 7}}) {
                     if (!quarried) quarried = build(s, StructureType.QUARRY, dep.origin.getX() + o[0], dep.origin.getZ() + o[1], 0, 0, 0) == null;
                 }
                 build(s, StructureType.BLACKSMITH, cx - 24, cz + 8, 0, 0, 0);

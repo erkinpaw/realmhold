@@ -120,7 +120,7 @@ public final class Workforce {
             List<PeasantEntity> free = idle(f.id);
             for (Structure s : d.structures.values()) {
                 if (free.isEmpty()) break;
-                if (s.owner != f.id || !s.built() || s.type.workers == 0) continue;
+                if (s.owner != f.id || !s.built() || s.type.workers == 0 || Structures.exhausted(s)) continue;
                 int want = s.type.workers - hands.getOrDefault(s.id, 0);
                 for (int i = 0; i < want && !free.isEmpty(); i++) {
                     PeasantEntity best = null;

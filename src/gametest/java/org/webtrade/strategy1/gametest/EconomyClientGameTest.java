@@ -151,7 +151,7 @@ public class EconomyClientGameTest implements FabricClientGameTest {
                     if (dep == null) continue;
                     deposits.add(dep.origin);
                     boolean ok = false;
-                    for (int[] o : new int[][]{{8, 0}, {-8, 0}, {0, 8}, {0, -8}, {7, 7}, {-7, -7}, {7, -7}, {-7, 7}}) {
+                    for (int[] o : new int[][]{{0, 0}, {8, 0}, {-8, 0}, {0, 8}, {0, -8}, {7, 7}, {-7, -7}, {7, -7}, {-7, 7}}) {
                         if (!ok) ok = build(s, k[0], dep.origin.getX() + o[0], dep.origin.getZ() + o[1], 0, 0, 0) == null;
                     }
                 }

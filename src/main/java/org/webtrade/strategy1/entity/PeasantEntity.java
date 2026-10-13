@@ -226,7 +226,7 @@ public class PeasantEntity extends UnitEntity {
                 else buildAt(level, st);
                 return;
             }
-            if (job >= 0 && (st == null || !st.built() || st.owner != faction())) {
+            if (job >= 0 && (st == null || !st.built() || st.owner != faction() || Structures.exhausted(st))) {
                 assign(-1);
                 st = null;
             }
@@ -356,15 +356,15 @@ public class PeasantEntity extends UnitEntity {
             }
             case QUARRY -> {
                 carried = Res.STONE;
-                carry = Workforce.richness(st, Res.STONE) ? 6 : 4;
+                carry = Structures.dig(st, Workforce.richness(st, Res.STONE) ? 6 : 4);
             }
             case IRON_MINE -> {
                 carried = Res.IRON;
-                carry = Workforce.richness(st, Res.IRON) ? 3 : 2;
+                carry = Structures.dig(st, Workforce.richness(st, Res.IRON) ? 3 : 2);
             }
             case GOLD_MINE -> {
                 carried = Res.GOLD;
-                carry = Workforce.richness(st, Res.GOLD) ? 2 : 1;
+                carry = Structures.dig(st, Workforce.richness(st, Res.GOLD) ? 2 : 1);
             }
             default -> {
                 task = Task.TO_WORK;
