@@ -146,8 +146,9 @@ public final class Payloads {
     /**
      * An order to chosen soldiers (by entity id): go to a point, attack an entity, hold where they are.
      */
+    /** UNLOAD (with a transport chosen): her soldiers ashore at the nearest land. */
     public record UnitOrder(int[] units, int order, double x, double y, double z, int target) implements CustomPacketPayload {
-        public static final int MOVE = 0, ATTACK = 1, HOLD = 2, ATTACK_STRUCTURE = 3, BOARD = 4, POST = 5;
+        public static final int MOVE = 0, ATTACK = 1, HOLD = 2, ATTACK_STRUCTURE = 3, BOARD = 4, POST = 5, UNLOAD = 6;
         public static final Type<UnitOrder> TYPE = new Type<>(Strategy1.id("unit_order"));
         public static final StreamCodec<FriendlyByteBuf, UnitOrder> CODEC = StreamCodec.of((b, o) -> {
             b.writeVarIntArray(o.units);

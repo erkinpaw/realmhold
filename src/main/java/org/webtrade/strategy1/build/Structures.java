@@ -52,6 +52,7 @@ public final class Structures {
     public static void clear() {
         POSTS.clear();
         AIMED.clear();
+        EngineModels.clear();
         dirty = true;
         lastSync = -10;
     }
@@ -319,6 +320,7 @@ public final class Structures {
         StrategyData d = data();
         if (d == null) return;
         if (ticks % 5 == 0) gates(level, ticks);
+        EngineModels.tick(level, ticks);
         for (Structure s : new ArrayList<>(d.structures.values())) {
             if (s.planned) {
                 if (ticks % 20 == 0) layOutPlanned(level, s);
@@ -631,7 +633,7 @@ public final class Structures {
     /** Puts an engine on a tower (its blocks go on the top). */
     public static boolean upgrade(Faction f, int id, int engine) {
         Structure s = data().structures.get(id);
-        if (s == null || s.owner != f.id || !s.type.tower() || !s.built() || engine < 1 || engine > 3) return false;
+        if (s == null || s.owner != f.id || !s.type.tower() || !s.built() || !s.type.carries(engine)) return false;
         int[] cost = engineCost(engine);
         if (!f.canPay(cost)) return false;
         f.pay(cost);
@@ -650,19 +652,9 @@ public final class Structures {
             }
             add.get(add.size() - 1)[1] = idx;
         };
-        switch (engine) {
-            case 1 -> {
-                put.accept(c, Blocks.DISPENSER.defaultBlockState().setValue(net.minecraft.world.level.block.DispenserBlock.FACING, net.minecraft.core.Direction.UP));
-                put.accept(c.above(), Blocks.OAK_FENCE.defaultBlockState());
-            }
-            case 2 -> {
-                put.accept(c, Blocks.OAK_LOG.defaultBlockState());
-                put.accept(c.above(), Blocks.COBBLESTONE_WALL.defaultBlockState());
-            }
-            default -> {
-                put.accept(c, Blocks.CAMPFIRE.defaultBlockState());
-            }
-        }
+        // (the ballista and the catapult are models that turn and move; the fire is a brazier on the top)
+        if (engine == 3) put.accept(c, Blocks.CAMPFIRE.defaultBlockState());
+        else if (!level.getBlockState(c).isAir()) level.setBlock(c, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         int n0 = s.pos.length;
         s.pos = java.util.Arrays.copyOf(s.pos, n0 + add.size());
         s.state = java.util.Arrays.copyOf(s.state, n0 + add.size());
@@ -685,8 +677,8 @@ public final class Structures {
             int r = RELOAD.merge(s.id, -1, Integer::sum);
             if (r > 0) continue;
             int top = s.type == StructureType.TOWER_STONE ? 12 : 8;
-            Vec3 from = Vec3.atCenterOf(s.origin.above(top));
-            double reach = s.engine == 1 ? 40 : s.engine == 2 ? 44 : 14;
+            Vec3 from = EngineModels.seat(s).add(0, 0.8, 0);
+            double reach = s.type.engineReach(s.engine);
             net.minecraft.world.entity.LivingEntity target = null;
             double best = Double.MAX_VALUE;
             // the one the strategist pointed at, while it's alive and in reach
@@ -708,7 +700,8 @@ public final class Structures {
             if (target == null) continue;
             // (out from the engine, clear of the tower's own top)
             Vec3 toward = target.position().subtract(from);
-            from = from.add(new Vec3(toward.x, 0, toward.z).normalize().scale(2.2)).add(0, 1.2, 0);
+            from = from.add(new Vec3(toward.x, 0, toward.z).normalize().scale(1.8)).add(0, 1.0, 0);
+            EngineModels.fired(s, target.position());
             switch (s.engine) {
                 case 1 -> {
                     // the ballista: a heavy bolt, straight and hard
