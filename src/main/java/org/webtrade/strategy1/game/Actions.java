@@ -238,6 +238,17 @@ public final class Actions {
                     Structures.changed();
                 }
             }
+            case Payloads.StructureAction.GATE -> {
+                if (st.type == StructureType.GATE) Structures.holdGate(f, st.id);
+                else {
+                    int[] o = Payloads.StructureAction.unpack(a.arg());
+                    String err = Structures.gate(f, st.id, o[0], o[1]);
+                    if (err != null) {
+                        int[] c = StructureType.GATE.cost(3);
+                        no(player, err, c[0], c[1], c[2], c[3], c[4]);
+                    } else ok(player, Component.translatable("strategy1.ok.gate"));
+                }
+            }
             case Payloads.StructureAction.AIM -> {
                 if (!Structures.aim(level, st.id, a.arg())) no(player, "strategy1.err.cant_aim");
             }
