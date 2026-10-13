@@ -132,6 +132,16 @@ public enum StructureType {
         };
     }
 
+    /** How much a deposit holds to dig, when it's found (a rich province's more). */
+    public int riches() {
+        return switch (this) {
+            case DEPOSIT_STONE -> 2400;
+            case DEPOSIT_IRON -> 1500;
+            case DEPOSIT_GOLD -> 800;
+            default -> 0;
+        };
+    }
+
     /** Where carriers bring what they gathered. */
     public boolean store() {
         return this == KEEP || this == STOCKPILE;

@@ -285,8 +285,8 @@
   "strategy1.build.deposit_stone": "Stone outcrop",
   "strategy1.build.deposit_iron": "Iron vein",
   "strategy1.build.deposit_gold": "Gold vein",
-  "strategy1.err.build_deposit": "It goes only by a deposit.",
-  "strategy1.rts.by_deposit": "Goes by a deposit: %s",
+  "strategy1.err.build_deposit": "Quarries and mines go right on their deposit",
+  "strategy1.rts.by_deposit": "Goes right on a deposit: %s",
   "strategy1.menu.new": "New realm",
   "strategy1.menu.load": "Continue",
   "strategy1.menu.multiplayer": "Multiplayer",
@@ -419,5 +419,8 @@
   "strategy1.rts.gate_hold_tip": "Open even with an enemy near. Again: by itself once more, open for your own, shut before the enemy",
   "strategy1.ok.gate": "The gate is going up",
   "strategy1.err.gate_here": "A gate goes in a wall of 5 blocks or more, not at its very end",
-  "strategy1.err.gate_there": "There is a gate here already"
+  "strategy1.err.gate_there": "There is a gate here already",
+  "strategy1.err.deposit_taken": "This deposit is worked already",
+  "strategy1.msg.mine_empty": "%s: the deposit is dug out",
+  "strategy1.tip.left": "~%s left"
 }

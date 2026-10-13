@@ -908,6 +908,7 @@ public class RtsScreen extends Screen {
                     : Component.literal("❤ " + s.hp() + "/" + s.maxHp() + (s.posts() > 0 ? "   ➶ " + s.archers() + "/" + s.posts() : ""));
             if (s.built() >= 100 && StructureType.of(s.type()).manned() && s.owner() == ClientState.me())
                 line = line.copy().append(" · ").append(Component.translatable("strategy1.tip.aim"));
+            if (s.left() >= 0) line = line.copy().append(" · ").append(Component.translatable("strategy1.tip.left", s.left()));
             if (StructureType.of(s.type()).musters() && s.owner() == ClientState.me())
                 line = line.copy().append(" · ").append(Component.translatable("strategy1.tip.rally"));
         } else if (!SELECTED.isEmpty()) {
@@ -1130,7 +1131,7 @@ public class RtsScreen extends Screen {
             if (want != null) {
                 boolean near = false;
                 for (Payloads.StructureInfo d : ClientState.STRUCTURES.values()) {
-                    if (d.type() == want.ordinal() && d.aabb().getCenter().distanceToSqr(at.getX(), d.aabb().getCenter().y, at.getZ()) < 14 * 14) near = true;
+                    if (d.type() == want.ordinal() && d.aabb().getCenter().distanceToSqr(at.getX(), d.aabb().getCenter().y, at.getZ()) < 6 * 6) near = true;
                 }
                 if (!near) own = false;
             }
