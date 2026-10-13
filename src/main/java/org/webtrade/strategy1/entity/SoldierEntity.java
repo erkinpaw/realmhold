@@ -53,6 +53,16 @@ public class SoldierEntity extends UnitEntity {
     public long province;
     /** The structure manned, to be manned or broken; the ship to board (entity id). */
     public int structure = -1, ship = -1;
+
+    /** How far this one shoots: on the field, from a deck, from what he's posted on. */
+    public double reach() {
+        if (isPassenger()) return 26;
+        if (mode == Mode.POSTED && data() != null) {
+            org.webtrade.strategy1.build.Structure st = data().structures.get(structure);
+            if (st != null) return st.type.reach();
+        }
+        return org.webtrade.strategy1.build.StructureType.FIELD_REACH;
+    }
     private int reload;
     private int repath;
 
@@ -208,6 +218,11 @@ public class SoldierEntity extends UnitEntity {
         ItemStack arrowStack = new ItemStack(Items.ARROW);
         Arrow arrow = new Arrow(sl, this, arrowStack, getMainHandItem());
         arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
+        if (mode == Mode.POSTED || isPassenger()) {
+            // (from a tower, a wall or a deck: out over the parapet, not into it)
+            Vec3 out = new Vec3(target.getX() - getX(), 0, target.getZ() - getZ()).normalize().scale(0.9);
+            arrow.setPos(arrow.getX() + out.x, arrow.getY() + 0.5, arrow.getZ() + out.z);
+        }
         double dx = target.getX() - getX(), dy = target.getY(0.3333) - arrow.getY(), dz = target.getZ() - getZ();
         double flat = Math.sqrt(dx * dx + dz * dz);
         Projectile.spawnProjectileUsingShoot(arrow, sl, arrowStack, dx, dy + flat * 0.2, dz, 1.7F, 4F);

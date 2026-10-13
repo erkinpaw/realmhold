@@ -482,8 +482,8 @@ final class Blueprints {
         walls(f, plan, -2, -2, 2, 2, 7, 7, d(Blocks.OAK_FENCE), d(Blocks.OAK_FENCE));
         plan.put(f.at(-2, 8, -2), d(Blocks.TORCH));
         plan.put(f.at(2, 8, 2), d(Blocks.TORCH));
-        plan.spots.add(f.spot(-1, 7, 0));
-        plan.spots.add(f.spot(1, 7, 0));
+        // four bowmen at the corners of the platform (the middle for a ballista)
+        for (int[] c : new int[][]{{-1, -1}, {1, 1}, {1, -1}, {-1, 1}}) plan.spots.add(f.spot(c[0], 7, c[1]));
     }
 
     private static void towerStone(Frame f, Plan plan) {
@@ -496,8 +496,8 @@ final class Blueprints {
                 if (Math.floorMod(x + z, 2) == 0) plan.put(f.at(x, 11, z), d(Blocks.STONE_BRICK_WALL));
             }
         }
-        plan.put(f.at(0, 11, 0), d(Blocks.LANTERN));
-        for (int[] c : new int[][]{{-1, -1}, {1, 1}, {1, -1}, {-1, 1}}) plan.spots.add(f.spot(c[0], 11, c[1]));
+        // eight bowmen round the top, each at his own gap in the parapet (the middle for an engine)
+        for (int[] c : new int[][]{{-2, -2}, {2, 2}, {2, -2}, {-2, 2}, {0, -2}, {0, 2}, {-2, 0}, {2, 0}}) plan.spots.add(f.spot(c[0], 11, c[1]));
     }
 
     // ------------------------------------------------------------------ lines

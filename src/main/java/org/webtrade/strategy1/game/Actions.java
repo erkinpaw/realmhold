@@ -432,6 +432,23 @@ public final class Actions {
         ServerLevel level = (ServerLevel) player.level();
         Vec3 to = new Vec3(o.x(), o.y(), o.z());
         Entity target = o.target() >= 0 && (o.order() == Payloads.UnitOrder.ATTACK || o.order() == Payloads.UnitOrder.BOARD) ? level.getEntity(o.target()) : null;
+        // soldiers aboard: their ship takes them there and puts them ashore (or at the nearest land, told to land)
+        java.util.Set<ShipEntity> ferries = new java.util.LinkedHashSet<>();
+        for (java.util.Iterator<UnitEntity> it = mine.iterator(); it.hasNext(); ) {
+            UnitEntity u = it.next();
+            if (u.getVehicle() instanceof ShipEntity sh && (o.order() == Payloads.UnitOrder.MOVE || o.order() == Payloads.UnitOrder.UNLOAD)) {
+                ferries.add(sh);
+                it.remove();
+            } else if (u instanceof ShipEntity sh && o.order() == Payloads.UnitOrder.UNLOAD) {
+                ferries.add(sh);
+                it.remove();
+            }
+        }
+        for (ShipEntity sh : ferries) {
+            Vec3 shore = o.order() == Payloads.UnitOrder.UNLOAD ? sh.nearestLand(level) : to;
+            if (shore != null) sh.order(ShipEntity.Mode.UNLOAD, shore, -1, -1);
+            else no(player, "strategy1.err.no_shore");
+        }
         int n = 0;
         for (UnitEntity u : mine) {
             int i = n++;

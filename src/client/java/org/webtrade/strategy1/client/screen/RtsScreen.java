@@ -329,6 +329,15 @@ public class RtsScreen extends Screen {
             icons.put(k, icon(e));
         }
         int i = 0;
+        boolean ferry = false;
+        for (int id : SELECTED) {
+            Entity e = minecraft.level.getEntity(id);
+            if (e != null && e.isPassenger() && e.getVehicle() instanceof ShipEntity || e instanceof ShipEntity sh && !sh.getPassengers().isEmpty()) ferry = true;
+        }
+        if (ferry) {
+            add(i++, Icons.UNMAN, new IconButton.Info(Component.translatable("strategy1.rts.unload"), null, Component.translatable("strategy1.rts.unload_tip")), true,
+                    () -> order(Payloads.UnitOrder.UNLOAD, null, -1));
+        }
         add(i++, Icons.HOLD, new IconButton.Info(Component.translatable("strategy1.rts.hold"), null, Component.translatable("strategy1.rts.hold_tip"),
                 List.of(Component.translatable("strategy1.tip.hold_key").withStyle(ChatFormatting.GRAY), Component.translatable("strategy1.rts.orders_tip").withStyle(ChatFormatting.GRAY))), true,
                 () -> order(Payloads.UnitOrder.HOLD, null, -1));
@@ -393,6 +402,8 @@ public class RtsScreen extends Screen {
         }
         if (t.tower() && built) {
             for (int e = 1; e <= 3; e++) {
+                // (a wooden tower takes a ballista only)
+                if (!t.carries(e)) continue;
                 int en = e;
                 int[] cost = org.webtrade.strategy1.build.Structures.engineCost(e);
                 add(i++, Icons.engine(e), new IconButton.Info(Component.translatable("strategy1.engine." + e), cost, Component.translatable("strategy1.engine." + e + ".info")),
@@ -520,7 +531,7 @@ public class RtsScreen extends Screen {
     private void selectAll() {
         SELECTED.clear();
         structure = -1;
-        for (UnitEntity s : unitsNear()) if (mine(s) && !s.isPassenger()) SELECTED.add(s.getId());
+        for (UnitEntity s : unitsNear()) if (mine(s)) SELECTED.add(s.getId());
         rebuildWidgets();
     }
 
@@ -708,7 +719,7 @@ public class RtsScreen extends Screen {
                 }
             } else {
                 for (UnitEntity s : unitsNear()) {
-                    if (!mine(s) || s.isPassenger()) continue;
+                    if (!mine(s)) continue;
                     Vec3 sp = project(s.position().add(0, 1, 0));
                     if (sp != null && sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1) SELECTED.add(s.getId());
                 }
@@ -795,6 +806,7 @@ public class RtsScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float partialTick) {
         structures(g);
+        reaches(g);
         units(g);
         monsters(g);
         captures(g);
@@ -991,6 +1003,14 @@ public class RtsScreen extends Screen {
             }
             if (top == null || top.z > 140) continue;
             int x = (int) top.x, y = (int) top.y;
+            StructureType kind = StructureType.of(s.type());
+            if (top.z < 70 && s.built() >= 100 && !kind.deposit() && !kind.wall() && kind != StructureType.GATE && kind != StructureType.BRIDGE) {
+                var sprite = Icons.building(kind);
+                if (sprite != null) {
+                    g.fill(x - 11, y - 25, x + 11, y - 3, 0x90000000 | (color < 0 ? 0x666666 : color & 0xFFFFFF));
+                    Ui.blit(g, sprite, x - 10, y - 24, x + 10, y - 4);
+                }
+            }
             if (s.built() < 100) {
                 if (s.owner() != ClientState.me() && !chosen) continue;
                 bar(g, x, y, 40, s.built() / 100F, 0xE0C040);
@@ -1031,6 +1051,24 @@ public class RtsScreen extends Screen {
                 g.fill(x1 - l, y1 - 1, x1, y1, c);
                 g.fill(x1 - 1, y1 - l, x1, y1, c);
             }
+        }
+    }
+
+    /** How far the chosen shoot: a ring round each bowman, and round a chosen tower (its engine's too). */
+    private void reaches(GuiGraphicsExtractor g) {
+        int n = 0;
+        for (int id : SELECTED) {
+            if (!(minecraft.level.getEntity(id) instanceof SoldierEntity s) || !s.unit().ranged || n++ > 12) continue;
+            double r = s.isPassenger() ? 26 : StructureType.FIELD_REACH;
+            ring(g, new Vec3(s.getX(), s.getY() + 0.1, s.getZ()), r, 0x90FFB040);
+        }
+        Payloads.StructureInfo st = ClientState.STRUCTURES.get(structure);
+        if (st != null && StructureType.of(st.type()).manned() && st.built() >= 100) {
+            StructureType t = StructureType.of(st.type());
+            Vec3 c = st.aabb().getCenter();
+            Vec3 at = ground(new Vec3(c.x, 0, c.z));
+            if (st.archers() > 0 || t.tower()) ring(g, at, t.reach(), 0xA0FFB040);
+            if (st.engine() > 0) ring(g, at, t.engineReach(st.engine()), 0xA0FF6040);
         }
     }
 

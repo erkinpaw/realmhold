@@ -6,7 +6,8 @@
   "mixins": [
     "DisplayAccess",
     "BlockDisplayAccess",
-    "MobAccess"
+    "MobAccess",
+    "ArrowAccess"
   ],
   "injectors": {
     "defaultRequire": 1
