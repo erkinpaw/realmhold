@@ -22,6 +22,8 @@ import org.webtrade.strategy1.network.Payloads;
 public final class Rts {
 
     public static final float PITCH = 55F;
+    /** How much the strategist sees by night (as night vision, 0..1). */
+    public static final float NIGHT_LIGHT = 0.5F;
     public static final float MIN = 12, MAX = 110;
     private static boolean active;
     /** Turned on by itself once the map has come (a fresh join). */

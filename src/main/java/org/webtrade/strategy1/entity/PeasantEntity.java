@@ -66,6 +66,8 @@ public class PeasantEntity extends UnitEntity {
     private Res carried = Res.WOOD;
     private BlockPos target;
     public Vec3 home = Vec3.ZERO;
+    /** Where the light of the torch they carry by night is now (an unseen light block over their head), or null. */
+    private BlockPos light;
 
     public PeasantEntity(EntityType<? extends PeasantEntity> type, Level level) {
         super(type, level);
@@ -400,11 +402,31 @@ public class PeasantEntity extends UnitEntity {
         super.tick();
         if (level() instanceof ServerLevel && isAlive()) {
             Workforce.tick(this);
+            if (tickCount % 4 == 0) torch((ServerLevel) level());
             if (tickCount % 10 == 0) {
                 Structure st = workplace();
                 entityData.set(DATA_JOB, st == null ? -1 : builder ? BUILDING : st.type.ordinal());
             }
         }
+    }
+
+    /** By night a torch in the other hand, and its light round them as they go (put out by day). */
+    private void torch(ServerLevel level) {
+        long t = level.getOverworldClockTime() % 24000;
+        boolean night = t >= 12800 && t < 23200;
+        if (night != !getOffhandItem().isEmpty()) setItemSlot(EquipmentSlot.OFFHAND, night ? new ItemStack(Items.TORCH) : ItemStack.EMPTY);
+        BlockPos want = night && isAlive() ? blockPosition().above() : null;
+        if (want != null && want.equals(light)) return;
+        douse(level);
+        if (want != null && level.getBlockState(want).isAir()) {
+            level.setBlock(want, Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 13), 2);
+            light = want;
+        }
+    }
+
+    private void douse(ServerLevel level) {
+        if (light != null && level.getBlockState(light).is(Blocks.LIGHT)) level.setBlock(light, Blocks.AIR.defaultBlockState(), 2);
+        light = null;
     }
 
     @Override
@@ -415,6 +437,7 @@ public class PeasantEntity extends UnitEntity {
     @Override
     public void remove(RemovalReason reason) {
         if (target != null) Trees.release(target);
+        if (level() instanceof ServerLevel sl) douse(sl);
         super.remove(reason);
     }
 

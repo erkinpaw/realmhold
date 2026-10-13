@@ -47,7 +47,7 @@ final class SoldierGoals {
         }
 
         private boolean may() {
-            return !s.unit().ranged && !s.isPassenger() && s.mode != SoldierEntity.Mode.POSTED;
+            return !s.unit().ranged && !s.unit().heals() && !s.isPassenger() && s.mode != SoldierEntity.Mode.POSTED;
         }
 
         @Override
@@ -222,7 +222,8 @@ final class SoldierGoals {
 
         @Override
         public boolean canUse() {
-            return true;
+            // (a healer seeks nobody out)
+            return !s.unit().heals();
         }
 
         @Override

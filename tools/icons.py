@@ -497,6 +497,23 @@ def _():
     return p.done()
 
 
+@icon('healer')
+def _():
+    p = Pic()
+    # a red cross on a white satchel, a flask beside it
+    p.rect(2, 6, 13, 17, WHITE)
+    p.rect(2, 6, 13, 7, (200, 196, 184))
+    p.line(4, 6, 6, 2, WOOD_D)
+    p.line(11, 6, 9, 2, WOOD_D)
+    p.line(6, 2, 9, 2, WOOD_D)
+    p.rect(6, 9, 9, 15, RED)
+    p.rect(4, 11, 11, 13, RED)
+    p.rect(15, 9, 17, 10, (180, 220, 240))
+    p.poly([(14, 11), (18, 11), (19, 17), (13, 17)], (230, 80, 120))
+    p.line(14, 12, 18, 12, (250, 150, 180))
+    return p.done()
+
+
 @icon('peasant')
 def _():
     p = Pic()
