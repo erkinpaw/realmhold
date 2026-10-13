@@ -17,6 +17,12 @@ final class SoldierGoals {
 
     /** How far a soldier looks for enemies, by its orders. */
     static double aggro(SoldierEntity s) {
+        // (bowmen look out as far as they shoot)
+        if (s.unit().ranged && s.mode != SoldierEntity.Mode.MOVE) return Math.max(base(s), s.reach());
+        return base(s);
+    }
+
+    private static double base(SoldierEntity s) {
         return switch (s.mode) {
             case FOLLOW -> 16;
             case HOLD -> 16;
@@ -31,7 +37,7 @@ final class SoldierGoals {
     /** How far from its post it chases an enemy (0: no limit). */
     static double leash(SoldierEntity s) {
         return switch (s.mode) {
-            case HOLD -> 22;
+            case HOLD -> s.unit().ranged ? s.reach() + 4 : 22;
             case GUARD -> 44;
             default -> 0;
         };
