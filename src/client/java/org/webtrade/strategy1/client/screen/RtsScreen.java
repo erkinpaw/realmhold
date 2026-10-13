@@ -541,6 +541,15 @@ public class RtsScreen extends Screen {
     private void command(Pick p) {
         // a tower (or wall, or the keep) chosen: right click on one of the enemy is its target
         Payloads.StructureInfo chosen = ClientState.STRUCTURES.get(structure);
+        // barracks, workshop or port chosen: right click on the ground is where what it sends out gathers
+        if (chosen != null && chosen.owner() == ClientState.me() && StructureType.of(chosen.type()).musters() && SELECTED.isEmpty()
+                && p.ground != null && chosen.door() != null && (p.entity == null || !enemy(p.entity))) {
+            Vec3 d = chosen.door();
+            if (ClientPlayNetworking.canSend(Payloads.StructureAction.TYPE)) ClientPlayNetworking.send(new Payloads.StructureAction(chosen.id(),
+                    Payloads.StructureAction.RALLY, Payloads.StructureAction.pack((int) Math.floor(p.ground.x) - (int) Math.floor(d.x), (int) Math.floor(p.ground.z) - (int) Math.floor(d.z))));
+            mark(p.ground, GO);
+            return;
+        }
         if (chosen != null && chosen.owner() == ClientState.me() && StructureType.of(chosen.type()).manned()) {
             Entity target = p.entity != null && enemy(p.entity) ? p.entity : enemyNear(p.ground, 3);
             if (target != null) {
@@ -884,6 +893,8 @@ public class RtsScreen extends Screen {
                     : Component.literal("❤ " + s.hp() + "/" + s.maxHp() + (s.posts() > 0 ? "   ➶ " + s.archers() + "/" + s.posts() : ""));
             if (s.built() >= 100 && StructureType.of(s.type()).manned() && s.owner() == ClientState.me())
                 line = line.copy().append(" · ").append(Component.translatable("strategy1.tip.aim"));
+            if (StructureType.of(s.type()).musters() && s.owner() == ClientState.me())
+                line = line.copy().append(" · ").append(Component.translatable("strategy1.tip.rally"));
         } else if (!SELECTED.isEmpty()) {
             name = Component.translatable("strategy1.rts.selected", SELECTED.size());
             line = Component.translatable("strategy1.rts.orders_tip");
@@ -942,6 +953,17 @@ public class RtsScreen extends Screen {
             Vec3 top = project(new Vec3(c.x, b.maxY + 0.8, c.z));
             int color = ClientState.color(s.owner());
             boolean chosen = s.id() == structure;
+            if (chosen && s.owner() == ClientState.me() && s.door() != null) {
+                Vec3 door = ground(s.door());
+                ring(g, door, 1.5, 0xFF60D0FF);
+                Vec3 rally = s.rally() == null ? null : ground(s.rally());
+                if (rally != null) {
+                    line(g, door.add(0, 0.2, 0), rally.add(0, 0.2, 0), 0xFF70FF70);
+                    line(g, rally, rally.add(0, 2.5, 0), 0xFFFFFFFF);
+                    line(g, rally.add(0, 2.5, 0), rally.add(0.9, 2.1, 0), 0xFF70FF70);
+                    line(g, rally.add(0.9, 2.1, 0), rally.add(0, 1.7, 0), 0xFF70FF70);
+                }
+            }
             if (chosen) {
                 int col = 0xFFFFF4A0;
                 Vec3 p0 = new Vec3(b.minX, b.minY, b.minZ), p1 = new Vec3(b.maxX, b.minY, b.minZ), p2 = new Vec3(b.maxX, b.minY, b.maxZ),
@@ -1052,6 +1074,10 @@ public class RtsScreen extends Screen {
         int[] cost = placing.cost;
         if (placing.line) {
             BlockPos a = lineStart == null ? at : lineStart;
+            if (placing.wall()) {
+                a = snap(a, at);
+                at = snap(at, a);
+            }
             boolean own = owns(a.getX(), a.getZ()) && owns(at.getX(), at.getZ());
             int col = own ? 0xFF60FF60 : 0xFFFF5040;
             int len = (int) Math.round(Math.hypot(at.getX() - a.getX(), at.getZ() - a.getZ())) + 1;
@@ -1099,6 +1125,20 @@ public class RtsScreen extends Screen {
                 line(g, w[i], w[i].add(0, 3, 0), col);
             }
             line(g, w[0].lerp(w[1], 0.35).add(0, 0.1, 0), w[0].lerp(w[1], 0.65).add(0, 0.1, 0), 0xFFFFFFFF);
+            // where what it makes comes out (a ship: out on the water)
+            int dz = placing.doorZ();
+            if (dz != 0 && (placing.musters() || placing == StructureType.KEEP)) {
+                int[] t = switch (r) {
+                    case 1 -> new int[]{-dz, 0};
+                    case 2 -> new int[]{0, -dz};
+                    case 3 -> new int[]{dz, 0};
+                    default -> new int[]{0, dz};
+                };
+                Vec3 door = ground(new Vec3(at.getX() + t[0] + 0.5, at.getY(), at.getZ() + t[1] + 0.5));
+                boolean wet = placing != StructureType.PORT || !minecraft.level.getFluidState(BlockPos.containing(door).below()).isEmpty()
+                        || !minecraft.level.getFluidState(BlockPos.containing(door)).isEmpty();
+                ring(g, door, placing == StructureType.PORT ? 2.5 : 1.5, wet ? 0xFF60D0FF : 0xFFFF5040);
+            }
         }
         // the cost by the cursor, in pictures
         var me = ClientState.mine();
@@ -1109,6 +1149,42 @@ public class RtsScreen extends Screen {
             g.text(font, String.valueOf(cost[i]), cx + 16, cy + 5, me != null && me.res()[i] >= cost[i] ? 0xFFFFFFFF : 0xFFFF7060, true);
             cx += 22 + font.width(String.valueOf(cost[i]));
         }
+    }
+
+    /** A point brought down (or up) to the top of the ground or water there. */
+    private Vec3 ground(Vec3 p) {
+        int y = minecraft.level.getHeight(Heightmap.Types.WORLD_SURFACE, (int) Math.floor(p.x), (int) Math.floor(p.z));
+        return new Vec3(p.x, y + 0.05, p.z);
+    }
+
+    /** A ring on the ground. */
+    private void ring(GuiGraphicsExtractor g, Vec3 c, double r, int color) {
+        Vec3 prev = null;
+        for (int i = 0; i <= 24; i++) {
+            double a = i * Math.PI * 2 / 24;
+            Vec3 p = new Vec3(c.x + Math.cos(a) * r, c.y, c.z + Math.sin(a) * r);
+            if (prev != null) line(g, prev, p, color);
+            prev = p;
+        }
+    }
+
+    /** As the server does it: a wall's end in a tower, the keep or a wall moved out to its side, towards the other end. */
+    private static BlockPos snap(BlockPos end, BlockPos other) {
+        for (Payloads.StructureInfo o : ClientState.STRUCTURES.values()) {
+            StructureType t = StructureType.of(o.type());
+            if (!(t.tower() || t == StructureType.KEEP || t.wall())) continue;
+            AABB b = o.aabb();
+            double x = end.getX() + 0.5, z = end.getZ() + 0.5, tx = other.getX() + 0.5, tz = other.getZ() + 0.5;
+            if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) continue;
+            double len = Math.hypot(tx - x, tz - z);
+            if (len < 1) return end;
+            for (double step = 0; step <= len; step += 0.5) {
+                double px = x + (tx - x) * step / len, pz = z + (tz - z) * step / len;
+                if (px < b.minX || px > b.maxX || pz < b.minZ || pz > b.maxZ) return BlockPos.containing(px, end.getY(), pz);
+            }
+            return end;
+        }
+        return end;
     }
 
     private boolean owns(double x, double z) {

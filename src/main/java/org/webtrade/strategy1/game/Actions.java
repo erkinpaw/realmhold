@@ -147,6 +147,12 @@ public final class Actions {
         recruitAt(player, data, f, at, unit, null);
     }
 
+    /** A spot near a gathering point, on the ground (each comes to his own, not all to one). */
+    private static Vec3 gather(ServerLevel level, Vec3 rally) {
+        double a = Math.random() * Math.PI * 2, r = Math.random() * 2.5;
+        return SoldierEntity.surface(level, rally.x + Math.cos(a) * r, rally.z + Math.sin(a) * r);
+    }
+
     private static void recruitAt(ServerPlayer player, StrategyData data, Faction f, Province at, UnitType unit, Structure barracks) {
         if (!Structures.has(f.id, unit.requires)) {
             no(player, "strategy1.err.build_needs_one", Component.translatable(unit.requires.key()));
@@ -161,8 +167,10 @@ public final class Actions {
             if (barracks != null && barracks.province() != at.key()) barracks = null;
         }
         if (barracks != null) {
+            // (round the door, not all on one spot)
             Vec3 door = Structures.door(barracks);
-            spot = new Vec3(door.x + Math.random() - 0.5, 0, door.z + Math.random() - 0.5);
+            double a = Math.random() * Math.PI * 2, r = 0.5 + Math.random() * 1.5;
+            spot = new Vec3(door.x + Math.cos(a) * r, 0, door.z + Math.sin(a) * r);
         } else {
             double a = Math.random() * Math.PI * 2;
             spot = new Vec3(at.hex.centerX() + Math.cos(a) * 4, 0, at.hex.centerZ() + Math.sin(a) * 4);
@@ -184,6 +192,7 @@ public final class Actions {
         if (s == null) return;
         s.commander = player.getUUID();
         s.mode = SoldierEntity.Mode.HOLD;
+        if (barracks != null && barracks.rally != null) s.order(SoldierEntity.Mode.MOVE, gather(level, barracks.rally));
         f.army++;
         ok(player, Component.translatable("strategy1.ok.recruit", Component.translatable(unit.key()), f.army, f.peasants));
     }
@@ -220,6 +229,15 @@ public final class Actions {
                 Structures.unman(f, st.id);
             }
             case Payloads.StructureAction.DEMOLISH -> Structures.destroy(level, st);
+            case Payloads.StructureAction.RALLY -> {
+                if (st.type.musters()) {
+                    int[] o = Payloads.StructureAction.unpack(a.arg());
+                    // (from its door, as the client knows it)
+                    Vec3 base = st.door != null ? st.door : Vec3.atBottomCenterOf(st.origin);
+                    st.rally = new Vec3(Math.floor(base.x) + o[0] + 0.5, 0, Math.floor(base.z) + o[1] + 0.5);
+                    Structures.changed();
+                }
+            }
             case Payloads.StructureAction.AIM -> {
                 if (!Structures.aim(level, st.id, a.arg())) no(player, "strategy1.err.cant_aim");
             }
@@ -271,7 +289,9 @@ public final class Actions {
                 }
                 if (!pay(player, f, treb ? Rules.TREBUCHET_COST : Rules.CATAPULT_COST)) return;
                 SiegeEntity.Kind kind = treb ? SiegeEntity.Kind.TREBUCHET : SiegeEntity.Kind.CATAPULT;
-                if (SiegeEntity.spawn(level, kind, f.id, f.color, door, player.getUUID()) != null) {
+                SiegeEntity engine = SiegeEntity.spawn(level, kind, f.id, f.color, door, player.getUUID());
+                if (engine != null) {
+                    if (st.rally != null) engine.order(SiegeEntity.Mode.MOVE, gather(level, st.rally), -1, -1);
                     f.siege++;
                     ok(player, Component.translatable("strategy1.ok.made", Component.translatable(kind.key())));
                 }
@@ -285,7 +305,9 @@ public final class Actions {
                 if (!pay(player, f, war ? Rules.WARSHIP_COST : Rules.TRANSPORT_COST)) return;
                 ShipEntity.Kind kind = war ? ShipEntity.Kind.WARSHIP : ShipEntity.Kind.TRANSPORT;
                 float yaw = (st.rot & 3) * 90F;
-                if (ShipEntity.spawn(level, kind, f.id, f.color, door, yaw, player.getUUID()) != null) {
+                ShipEntity ship = ShipEntity.spawn(level, kind, f.id, f.color, door, yaw, player.getUUID());
+                if (ship != null) {
+                    if (st.rally != null) ship.order(ShipEntity.Mode.MOVE, new Vec3(st.rally.x, ship.getY(), st.rally.z), -1, -1);
                     f.ships++;
                     ok(player, Component.translatable("strategy1.ok.made", Component.translatable(kind.key())));
                 } else {
