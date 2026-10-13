@@ -2,7 +2,8 @@ package org.webtrade.strategy1.hex;
 
 /**
  * A cell of the strategic map: a pointy-top hexagon in axial coordinates (q, r). The world's x runs with q, its z
- * down the rows of r. {@link #SIZE} is the distance from a hex's centre to any of its corners, in blocks.
+ * down the rows of r. {@link #SIZE} is the distance from a hex's centre to any of its corners, in blocks. The grid is
+ * laid where the world's first keep was put: hex (0, 0) is centred on {@link #originX}, {@link #originZ}.
  */
 public record Hex(int q, int r) {
 
@@ -12,6 +13,14 @@ public record Hex(int q, int r) {
 
     /** The neighbour across edge i (edge i runs from corner i to corner i + 1). */
     private static final int[][] EDGE = {{1, 0}, {0, 1}, {-1, 1}, {-1, 0}, {0, -1}, {1, -1}};
+
+    /** Where hex (0, 0)'s centre is in the world (the grid of this world, from its strategic data). */
+    private static double originX, originZ;
+
+    public static void setOrigin(double x, double z) {
+        originX = x;
+        originZ = z;
+    }
 
     public static Hex of(long key) {
         return new Hex((int) (key >> 32), (int) key);
@@ -26,15 +35,17 @@ public record Hex(int q, int r) {
     }
 
     public double centerX() {
-        return SIZE * SQRT3 * (q + r / 2.0);
+        return originX + SIZE * SQRT3 * (q + r / 2.0);
     }
 
     public double centerZ() {
-        return SIZE * 1.5 * r;
+        return originZ + SIZE * 1.5 * r;
     }
 
     /** The hex a point of the world lies in. */
     public static Hex at(double x, double z) {
+        x -= originX;
+        z -= originZ;
         double fq = (SQRT3 / 3 * x - z / 3.0) / SIZE;
         double fr = (2.0 / 3 * z) / SIZE;
         double fs = -fq - fr;

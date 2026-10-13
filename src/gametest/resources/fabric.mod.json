@@ -23,7 +23,8 @@
       "org.webtrade.strategy1.gametest.GatesClientGameTest",
       "org.webtrade.strategy1.gametest.MinesClientGameTest",
       "org.webtrade.strategy1.gametest.TowersClientGameTest",
-      "org.webtrade.strategy1.gametest.UnitsClientGameTest"
+      "org.webtrade.strategy1.gametest.UnitsClientGameTest",
+      "org.webtrade.strategy1.gametest.SiteClientGameTest"
     ]
   }
 }

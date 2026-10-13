@@ -656,6 +656,12 @@ public class RtsScreen extends Screen {
             return true;
         }
         if (event.y() > height - BAR || event.y() < TOP) return false;
+        if (ClientState.choosingSite()) {
+            Pick p = pick(event.x(), event.y());
+            if (event.button() == 0 && p.block != null && ClientPlayNetworking.canSend(Payloads.ChooseSite.TYPE))
+                ClientPlayNetworking.send(new Payloads.ChooseSite(p.block.getX() + 0.5, p.block.getZ() + 0.5));
+            return true;
+        }
         if (placing != null) {
             if (event.button() == 1) {
                 placing = null;
@@ -825,7 +831,8 @@ public class RtsScreen extends Screen {
         units(g);
         monsters(g);
         captures(g);
-        if (placing != null) preview(g, mx, my);
+        if (ClientState.choosingSite()) site(g, mx, my);
+        else if (placing != null) preview(g, mx, my);
         else hovered(g, mx, my);
         if (boxing && (Math.abs(mx - pressX) > 3 || Math.abs(my - pressY) > 3)) {
             int x0 = (int) Math.min(pressX, mx), x1 = (int) Math.max(pressX, mx), y0 = (int) Math.min(pressY, my), y1 = (int) Math.max(pressY, my);
@@ -847,6 +854,14 @@ public class RtsScreen extends Screen {
         g.fill(0, 0, width, TOP, 0xC0201810);
         g.fill(0, TOP, width, TOP + 1, Palette.BRASS_DARK);
         stats.clear();
+        if (ClientState.choosingSite()) {
+            // (the first thing to do: where the keep stands)
+            Component c = Component.translatable("strategy1.site.title");
+            int w = font.width(c) + 26, x = (width - w) / 2;
+            Ui.blit(g, Icons.building(StructureType.KEEP), x, 2, x + 20, 22);
+            g.text(font, c, x + 26, 8, 0xFFFFE070, true);
+            return;
+        }
         var me = ClientState.mine();
         if (me == null) return;
         int x = 4;
@@ -924,7 +939,10 @@ public class RtsScreen extends Screen {
         Ui.inset(g, x0, y0, x1, y1);
         Component name = null, line = null;
         int[] cost = null;
-        if (placing != null) {
+        if (ClientState.choosingSite()) {
+            name = Component.translatable("strategy1.site.title");
+            line = Component.translatable("strategy1.site.help");
+        } else if (placing != null) {
             name = Component.translatable(placing.key());
             cost = placing.cost;
             line = Component.translatable(placing.line ? "strategy1.rts.help_line" : "strategy1.rts.help_place");
@@ -1135,6 +1153,45 @@ public class RtsScreen extends Screen {
             int x = (int) at.x, ty = (int) at.y;
             g.item(new ItemStack(Items.BELL), x - 8, ty - 18);
             bar(g, x, ty, 60, hud.progress()[i] / (float) Rules.CAPTURE, color < 0 ? 0xFFFFFF : color);
+        }
+    }
+
+    /**
+     * Where the keep would stand (the world's first thing to do): its outline under the mouse, and round it the hex of
+     * its province as the map will be laid out; green on dry land, red on water.
+     */
+    private void site(GuiGraphicsExtractor g, int mx, int my) {
+        if (my > height - BAR || my < TOP) return;
+        Pick p = pick(mx, my);
+        if (p.block == null) return;
+        BlockPos at = p.block.above();
+        StructureType k = StructureType.KEEP;
+        double[][] c = {{k.x0, k.z0}, {k.x1 + 1, k.z0}, {k.x1 + 1, k.z1 + 1}, {k.x0, k.z1 + 1}};
+        boolean dry = true;
+        Vec3[] w = new Vec3[4];
+        for (int i = 0; i < 4; i++) {
+            w[i] = ground(new Vec3(at.getX() + c[i][0], 0, at.getZ() + c[i][1]));
+            if (!minecraft.level.getFluidState(BlockPos.containing(w[i]).below()).isEmpty()) dry = false;
+        }
+        if (!minecraft.level.getFluidState(p.block).isEmpty() || !minecraft.level.getFluidState(at).isEmpty()) dry = false;
+        int col = dry ? 0xFF60FF60 : 0xFFFF5040;
+        for (int i = 0; i < 4; i++) {
+            line(g, w[i], w[(i + 1) % 4], col);
+            line(g, w[i], w[i].add(0, 6, 0), col);
+        }
+        // the province's hex round it (the keep a little south of its centre), along the ground
+        double cx = at.getX() + 0.5, cz = at.getZ() + 0.5 - org.webtrade.strategy1.build.Structures.KEEP_SOUTH;
+        int edge = dry ? 0xFFFFE070 : 0xFFFF7060;
+        for (int i = 0; i < 6; i++) {
+            double a0 = Math.toRadians(60 * i - 30), a1 = Math.toRadians(60 * i + 30);
+            Vec3 prev = null;
+            for (int s = 0; s <= 6; s++) {
+                double f = s / 6.0, x = cx + Hex.SIZE * (Math.cos(a0) + (Math.cos(a1) - Math.cos(a0)) * f),
+                        z = cz + Hex.SIZE * (Math.sin(a0) + (Math.sin(a1) - Math.sin(a0)) * f);
+                Vec3 q = ground(new Vec3(x, 0, z)).add(0, 0.6, 0);
+                if (prev != null) line(g, prev, q, edge);
+                prev = q;
+            }
         }
     }
 

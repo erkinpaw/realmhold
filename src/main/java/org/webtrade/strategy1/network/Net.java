@@ -17,6 +17,7 @@ public final class Net {
         PayloadTypeRegistry.serverboundPlay().register(Payloads.UnitOrder.TYPE, Payloads.UnitOrder.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(Payloads.SetRts.TYPE, Payloads.SetRts.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(Payloads.Jump.TYPE, Payloads.Jump.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(Payloads.ChooseSite.TYPE, Payloads.ChooseSite.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(Payloads.RequestSync.TYPE, Payloads.RequestSync.CODEC);
         PayloadTypeRegistry.clientboundPlay().registerLarge(Payloads.StructureSync.TYPE, Payloads.StructureSync.CODEC, 1024 * 1024);
         PayloadTypeRegistry.serverboundPlay().register(Payloads.Build.TYPE, Payloads.Build.CODEC);
@@ -27,6 +28,7 @@ public final class Net {
         ServerPlayNetworking.registerGlobalReceiver(Payloads.UnitOrder.TYPE, (p, ctx) -> Actions.order(ctx.player(), p));
         ServerPlayNetworking.registerGlobalReceiver(Payloads.SetRts.TYPE, (p, ctx) -> StrategyManager.setRts(ctx.player(), p.on()));
         ServerPlayNetworking.registerGlobalReceiver(Payloads.Jump.TYPE, (p, ctx) -> StrategyManager.jump(ctx.player(), p.x(), p.z()));
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.ChooseSite.TYPE, (p, ctx) -> StrategyManager.chooseSite(ctx.player(), p.x(), p.z()));
         ServerPlayNetworking.registerGlobalReceiver(Payloads.RequestSync.TYPE, (p, ctx) -> StrategyManager.sendMap(ctx.player()));
     }
 }
