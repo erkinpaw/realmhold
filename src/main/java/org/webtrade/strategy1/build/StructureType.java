@@ -145,10 +145,10 @@ public enum StructureType {
     /** How far bowmen on it shoot (a wall a little further than the field, a stone tower furthest). */
     public double reach() {
         return switch (this) {
-            case TOWER_STONE -> 36;
-            case TOWER_WOOD -> 30;
-            case KEEP -> 32;
-            case WALL_WOOD, WALL_STONE, OUTPOST -> 26;
+            case TOWER_STONE -> 54;
+            case TOWER_WOOD -> 45;
+            case KEEP -> 48;
+            case WALL_WOOD, WALL_STONE, OUTPOST -> 39;
             default -> FIELD_REACH;
         };
     }
@@ -165,7 +165,9 @@ public enum StructureType {
     }
 
     /** How far bowmen shoot on the field. */
-    public static final double FIELD_REACH = 18;
+    public static final double FIELD_REACH = 27;
+    /** How far bowmen shoot from a ship's deck. */
+    public static final double DECK_REACH = 39;
 
     /** Where carriers bring what they gathered. */
     public boolean store() {

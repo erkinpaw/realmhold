@@ -1078,7 +1078,7 @@ public class RtsScreen extends Screen {
             if (!(minecraft.level.getEntity(id) instanceof SoldierEntity s) || n++ > 4) continue;
             if (s.unit().heals()) ring(g, new Vec3(s.getX(), s.getY() + 0.1, s.getZ()), UnitType.HEAL_RADIUS, 0xA060FF80);
             if (!s.unit().ranged) continue;
-            double r = s.isPassenger() ? 26 : StructureType.FIELD_REACH;
+            double r = s.isPassenger() ? StructureType.DECK_REACH : StructureType.FIELD_REACH;
             ring(g, new Vec3(s.getX(), s.getY() + 0.1, s.getZ()), r, 0x90FFB040);
         }
         Payloads.StructureInfo st = ClientState.STRUCTURES.get(structure);

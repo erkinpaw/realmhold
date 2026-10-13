@@ -718,24 +718,28 @@ public final class Structures {
             // (out from the engine, clear of the tower's own top)
             Vec3 toward = target.position().subtract(from);
             from = from.add(new Vec3(toward.x, 0, toward.z).normalize().scale(1.8)).add(0, 1.0, 0);
-            EngineModels.fired(s, target.position());
+            Vec3 out = from;
+            net.minecraft.world.entity.LivingEntity at = target;
             switch (s.engine) {
                 case 1 -> {
-                    // the ballista: a heavy bolt, straight and hard
+                    // the ballista: a heavy bolt, straight and hard (as its bow lets go)
                     RELOAD.put(s.id, 2);
-                    net.minecraft.world.entity.projectile.arrow.Arrow bolt = new net.minecraft.world.entity.projectile.arrow.Arrow(level, from.x, from.y, from.z,
-                            new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ARROW), null);
-                    bolt.setBaseDamage(7);
-                    bolt.addTag(org.webtrade.strategy1.entity.ShieldZombie.BOLT);
-                    bolt.pickup = net.minecraft.world.entity.projectile.arrow.AbstractArrow.Pickup.DISALLOWED;
-                    Vec3 aim = target.getEyePosition().subtract(0, 0.5, 0).subtract(from);
-                    bolt.shoot(aim.x, aim.y + aim.horizontalDistance() * 0.05, aim.z, 3.2F, 0.5F);
-                    level.addFreshEntity(bolt);
-                    level.playSound(null, s.origin.above(top), SoundEvents.CROSSBOW_SHOOT, SoundSource.BLOCKS, 1.2F, 0.6F);
+                    EngineModels.fired(s, at.position(), () -> {
+                        net.minecraft.world.entity.projectile.arrow.Arrow bolt = new net.minecraft.world.entity.projectile.arrow.Arrow(level, out.x, out.y, out.z,
+                                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ARROW), null);
+                        bolt.setBaseDamage(7);
+                        bolt.addTag(org.webtrade.strategy1.entity.ShieldZombie.BOLT);
+                        bolt.pickup = net.minecraft.world.entity.projectile.arrow.AbstractArrow.Pickup.DISALLOWED;
+                        Vec3 aim = at.getEyePosition().subtract(0, 0.5, 0).subtract(out);
+                        bolt.shoot(aim.x, aim.y + aim.horizontalDistance() * 0.05, aim.z, 3.2F, 0.5F);
+                        level.addFreshEntity(bolt);
+                        level.playSound(null, s.origin.above(top), SoundEvents.CROSSBOW_SHOOT, SoundSource.BLOCKS, 1.2F, 0.6F);
+                    });
                 }
                 case 2 -> {
+                    // the catapult: a stone, let go as its arm flies up
                     RELOAD.put(s.id, 5);
-                    org.webtrade.strategy1.entity.BoulderEntity.fire(level, null, from, target.position(), 40, 10, 3F);
+                    EngineModels.fired(s, at.position(), () -> org.webtrade.strategy1.entity.BoulderEntity.fire(level, null, out, at.position(), 40, 10, 3F));
                 }
                 default -> {
                     // the fire: burning pitch over whoever comes near
