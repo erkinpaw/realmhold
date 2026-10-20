@@ -18,12 +18,16 @@ import org.webtrade.strategy1.build.Structure;
 import org.webtrade.strategy1.build.StructureType;
 import org.webtrade.strategy1.build.Structures;
 import org.webtrade.strategy1.client.Rts;
+import org.webtrade.strategy1.client.screen.RtsScreen;
 import org.webtrade.strategy1.entity.SoldierEntity;
 import org.webtrade.strategy1.entity.UnitEntity;
 import org.webtrade.strategy1.game.Faction;
 import org.webtrade.strategy1.game.StrategyData;
 import org.webtrade.strategy1.game.UnitType;
 import org.webtrade.strategy1.hex.Hex;
+import org.lwjgl.glfw.GLFW;
+
+import java.util.Set;
 
 /** A gate in a wall: shut with nobody near, open for the realm's own, shut before the enemy even with its own by, open when held. */
 public class GatesClientGameTest implements FabricClientGameTest {
@@ -74,19 +78,41 @@ public class GatesClientGameTest implements FabricClientGameTest {
             Hex h = Hex.of(cap[0]);
             double cx = h.centerX(), cz = h.centerZ();
             server.waitFor(s -> Structures.has(me(s).id, StructureType.KEEP), 20 * 30);
-            // a wall across the land south of the keep, and a gate in its middle
+            // a wall across the land south of the keep, and a gate in it
             double wx = cx - 20, wz = cz - 20;
             server.runOnServer(s -> {
                 int y = s.overworld().getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) wx, (int) wz);
                 log("wall: {}", Structures.place(player(s), me(s), StructureType.WALL_WOOD, BlockPos.containing(wx, y, wz), BlockPos.containing(wx + 12, y, wz), 0));
             });
             server.waitFor(s -> last(s, StructureType.WALL_WOOD) != null && last(s, StructureType.WALL_WOOD).built(), 20 * 30);
-            server.runOnServer(s -> {
-                Structure w = last(s, StructureType.WALL_WOOD);
-                int dx = (int) (wx + 6) - (int) Math.floor(w.box().minX), dz = (int) wz - (int) Math.floor(w.box().minZ);
-                log("gate: {}", Structures.gate(me(s), w.id, dx, dz));
+            // the gate put where the mouse is along the wall (its outline goes with it), then clicked
+            int[] wall = new int[1];
+            server.runOnServer(s -> wall[0] = last(s, StructureType.WALL_WOOD).id);
+            context.runOnClient(mc -> {
+                RtsScreen.choose(Set.of(), wall[0]);
+                mc.gui.setScreen(new RtsScreen());
+                RtsScreen.cutGate(wall[0]);
+                Rts.jump(wx + 6, wz - 6);
+                Rts.distance = 18;
+                Rts.yaw = 0;
             });
+            context.waitTicks(30);
+            double[] cursor = context.computeOnClient(mc -> {
+                int gy = mc.level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(wx + 9), (int) Math.floor(wz - 2));
+                Vec3 p = ((RtsScreen) mc.gui.screen()).screenPoint(new Vec3(Math.floor(wx + 9) + 0.5, gy, Math.floor(wz - 2) + 0.5));
+                return new double[]{p.x, p.y};
+            });
+            int scale = context.computeOnClient(mc -> mc.getWindow().getGuiScale());
+            context.getInput().setCursorPos(cursor[0] * scale, cursor[1] * scale);
+            context.waitTicks(5);
+            context.takeScreenshot("gate_choose");
+            context.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT);
             server.waitFor(s -> last(s, StructureType.GATE) != null && last(s, StructureType.GATE).built(), 20 * 30);
+            server.runOnServer(s -> {
+                Structure g = last(s, StructureType.GATE);
+                log("gate from x {} to {} (the mouse at {})", g.origin.getX(), g.end.getX(), (int) Math.floor(wx + 9));
+                if (Math.min(g.origin.getX(), g.end.getX()) + 1 != (int) Math.floor(wx + 9)) throw new AssertionError("the gate isn't where the mouse was");
+            });
             context.waitTicks(20);
             int[] state = new int[1];
             server.runOnServer(s -> {
@@ -96,16 +122,16 @@ public class GatesClientGameTest implements FabricClientGameTest {
                 if (state[0] < g.leaves.length) throw new AssertionError("the gate isn't shut");
             });
             context.runOnClient(mc -> {
-                Rts.jump(wx + 6, wz - 4);
+                Rts.jump(wx + 9, wz - 4);
                 Rts.distance = 22;
                 Rts.yaw = 0;
             });
             // a soldier walks through
             int[] man = new int[1];
             server.runOnServer(s -> {
-                SoldierEntity m = SoldierEntity.spawn(s.overworld(), UnitType.MILITIA, me(s).id, me(s).color, new Vec3(wx + 6, 0, wz + 6), UnitEntity.Role.ARMY);
+                SoldierEntity m = SoldierEntity.spawn(s.overworld(), UnitType.MILITIA, me(s).id, me(s).color, new Vec3(wx + 9, 0, wz + 6), UnitEntity.Role.ARMY);
                 man[0] = m.getId();
-                m.order(SoldierEntity.Mode.MOVE, SoldierEntity.surface(s.overworld(), wx + 6, wz - 8));
+                m.order(SoldierEntity.Mode.MOVE, SoldierEntity.surface(s.overworld(), wx + 9, wz - 8));
             });
             int[] opened = {0};
             for (int t = 0; t < 30; t++) {
@@ -123,9 +149,9 @@ public class GatesClientGameTest implements FabricClientGameTest {
             // the enemy at the gate, the soldier still by it: shut
             server.runOnServer(s -> {
                 var m = (SoldierEntity) s.overworld().getEntity(man[0]);
-                m.order(SoldierEntity.Mode.MOVE, SoldierEntity.surface(s.overworld(), wx + 6, wz - 3));
+                m.order(SoldierEntity.Mode.MOVE, SoldierEntity.surface(s.overworld(), wx + 9, wz - 3));
                 Zombie z = EntityTypes.ZOMBIE.create(s.overworld(), EntitySpawnReason.EVENT);
-                Vec3 at = SoldierEntity.surface(s.overworld(), wx + 6, wz + 5);
+                Vec3 at = SoldierEntity.surface(s.overworld(), wx + 9, wz + 5);
                 z.snapTo(at.x, at.y, at.z, 0, 0);
                 z.setNoAi(true);
                 s.overworld().addFreshEntity(z);

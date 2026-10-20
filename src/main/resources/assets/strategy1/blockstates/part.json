@@ -1,0 +1,40 @@
+{
+ "variants": {
+  "part=0": {
+   "model": "strategy1:block/part/ballista_base"
+  },
+  "part=1": {
+   "model": "strategy1:block/part/ballista_arm_left"
+  },
+  "part=2": {
+   "model": "strategy1:block/part/ballista_arm_right"
+  },
+  "part=3": {
+   "model": "strategy1:block/part/ballista_bolt"
+  },
+  "part=4": {
+   "model": "strategy1:block/part/catapult_frame"
+  },
+  "part=5": {
+   "model": "strategy1:block/part/catapult_arm"
+  },
+  "part=6": {
+   "model": "strategy1:block/part/siege_catapult"
+  },
+  "part=7": {
+   "model": "strategy1:block/part/siege_catapult_arm"
+  },
+  "part=8": {
+   "model": "strategy1:block/part/trebuchet_base"
+  },
+  "part=9": {
+   "model": "strategy1:block/part/trebuchet_frame"
+  },
+  "part=10": {
+   "model": "strategy1:block/part/trebuchet_brace"
+  },
+  "part=11": {
+   "model": "strategy1:block/part/trebuchet_arm"
+  }
+ }
+}

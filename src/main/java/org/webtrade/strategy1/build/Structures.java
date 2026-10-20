@@ -52,6 +52,7 @@ public final class Structures {
     public static void clear() {
         POSTS.clear();
         AIMED.clear();
+        BOLTS.clear();
         EngineModels.clear();
         dirty = true;
         lastSync = -10;
@@ -124,17 +125,23 @@ public final class Structures {
         return null;
     }
 
-    /** What the client is told besides: the door, the gathering point, what's left to dig, the gate. */
+    /** What the client is told besides: the door, the gathering point, what's left to dig, the gate, a wall's ends. */
     private static int[] more(Structure s) {
         int n = Payloads.StructureInfo.NONE;
         Vec3 door = s.door;
         return new int[]{door == null ? n : (int) Math.floor(door.x), door == null ? n : (int) Math.floor(door.y), door == null ? n : (int) Math.floor(door.z),
                 s.rally == null ? n : (int) Math.floor(s.rally.x), s.rally == null ? n : (int) Math.floor(s.rally.z),
                 s.type.deposit() ? left(s) : s.type.needsDeposit() != null ? leftAt(s) : -1,
-                s.type == StructureType.GATE ? (s.held ? 1 : 0) : -1, s.open ? 1 : 0};
+                s.type == StructureType.GATE ? (s.held ? 1 : 0) : -1, s.open ? 1 : 0,
+                s.type.wall() ? s.origin.getX() : n, s.type.wall() ? s.origin.getZ() : n, s.type.wall() ? s.end.getX() : n, s.type.wall() ? s.end.getZ() : n};
     }
 
     // ------------------------------------------------------------------ gates
+
+    /** A wall's columns from one end to the other (x, z), as it's laid. */
+    public static List<int[]> wallColumns(BlockPos a, BlockPos b) {
+        return Blueprints.line(a, b);
+    }
 
     /** Cuts a gate in a realm's wall where it was clicked (not at its very ends); null if done, else why not. */
     public static String gate(Faction f, int wallId, int dx, int dz) {
@@ -626,6 +633,8 @@ public final class Structures {
     private static final Map<Integer, Integer> RELOAD = new HashMap<>();
     /** What each tower was told to shoot (structure id → entity id). */
     private static final Map<Integer, Integer> AIMED = new HashMap<>();
+    /** The ballistas' bolts in flight (they fly straight, so they're taken away once past their reach). */
+    private static final List<net.minecraft.world.entity.projectile.arrow.Arrow> BOLTS = new ArrayList<>();
 
     /** A tower told to shoot one of them: its engine and its archers turn on it. */
     public static boolean aim(ServerLevel level, int id, int entity) {
@@ -689,6 +698,12 @@ public final class Structures {
     /** Once a second: each tower's engine fires at the enemy nearest it in its reach. */
     private static void engines(ServerLevel level) {
         StrategyData d = data();
+        BOLTS.removeIf(b -> {
+            if (b.isRemoved()) return true;
+            if (b.tickCount < 40) return false;
+            b.discard();
+            return true;
+        });
         for (Structure s : d.structures.values()) {
             if (s.engine == 0 || !s.built() || !level.hasChunkAt(s.origin)) continue;
             int r = RELOAD.merge(s.id, -1, Integer::sum);
@@ -697,21 +712,31 @@ public final class Structures {
             Vec3 from = EngineModels.seat(s).add(0, 0.8, 0);
             double reach = s.type.engineReach(s.engine);
             net.minecraft.world.entity.LivingEntity target = null;
-            double best = Double.MAX_VALUE;
             // the one the strategist pointed at, while it's alive and in reach
             Integer aimed = AIMED.get(s.id);
             if (aimed != null) {
                 if (level.getEntity(aimed) instanceof net.minecraft.world.entity.LivingEntity e && e.isAlive() && e.position().distanceTo(from) <= reach + 8) {
                     target = e;
-                    best = -1;
                 } else AIMED.remove(s.id);
             }
-            for (net.minecraft.world.entity.LivingEntity e : level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
-                    new AABB(from, from).inflate(reach, 30, reach), e -> e.isAlive() && enemyOf(d, s.owner, e))) {
-                double dist = e.position().distanceTo(from);
-                if (best >= 0 && dist < best && dist <= reach && (s.engine != 2 || dist > 8)) {
-                    best = dist;
+            if (target != null && s.engine == 1 && boltFrom(level, s, target) == null) target = null;
+            if (target == null) {
+                // the nearest (a ballista's: the nearest it has a clear shot at, close under the tower too)
+                List<net.minecraft.world.entity.LivingEntity> near = new ArrayList<>(level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                        new AABB(from, from).inflate(reach, 30, reach), e -> e.isAlive() && enemyOf(d, s.owner, e)));
+                Vec3 f0 = from;
+                near.sort(java.util.Comparator.comparingDouble(e -> e.position().distanceToSqr(f0)));
+                int tries = 0;
+                for (net.minecraft.world.entity.LivingEntity e : near) {
+                    double dist = e.position().distanceTo(from);
+                    if (dist > reach) break;
+                    if (s.engine == 2 && dist <= 8) continue;
+                    if (s.engine == 1) {
+                        if (++tries > 6) break;
+                        if (boltFrom(level, s, e) == null) continue;
+                    }
                     target = e;
+                    break;
                 }
             }
             if (target == null) continue;
@@ -722,17 +747,21 @@ public final class Structures {
             net.minecraft.world.entity.LivingEntity at = target;
             switch (s.engine) {
                 case 1 -> {
-                    // the ballista: a heavy bolt, straight and hard (as its bow lets go)
+                    // the ballista: a heavy bolt, straight and hard (as its bow lets go), from past the tower's own top
                     RELOAD.put(s.id, 2);
                     EngineModels.fired(s, at.position(), () -> {
-                        net.minecraft.world.entity.projectile.arrow.Arrow bolt = new net.minecraft.world.entity.projectile.arrow.Arrow(level, out.x, out.y, out.z,
+                        Vec3 b0 = boltFrom(level, s, at);
+                        if (b0 == null) return;
+                        net.minecraft.world.entity.projectile.arrow.Arrow bolt = new net.minecraft.world.entity.projectile.arrow.Arrow(level, b0.x, b0.y, b0.z,
                                 new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ARROW), null);
                         bolt.setBaseDamage(7);
                         bolt.addTag(org.webtrade.strategy1.entity.ShieldZombie.BOLT);
                         bolt.pickup = net.minecraft.world.entity.projectile.arrow.AbstractArrow.Pickup.DISALLOWED;
-                        Vec3 aim = at.getEyePosition().subtract(0, 0.5, 0).subtract(out);
-                        bolt.shoot(aim.x, aim.y + aim.horizontalDistance() * 0.05, aim.z, 3.2F, 0.5F);
+                        bolt.setNoGravity(true);
+                        Vec3 aim = boltAim(at).subtract(b0);
+                        bolt.shoot(aim.x, aim.y, aim.z, 3.2F, 0.2F);
                         level.addFreshEntity(bolt);
+                        BOLTS.add(bolt);
                         level.playSound(null, s.origin.above(top), SoundEvents.CROSSBOW_SHOOT, SoundSource.BLOCKS, 1.2F, 0.6F);
                     });
                 }
@@ -757,6 +786,30 @@ public final class Structures {
                 }
             }
         }
+    }
+
+    /** Where a ballista's bolt is aimed on one: its chest. */
+    private static Vec3 boltAim(net.minecraft.world.entity.LivingEntity e) {
+        return e.position().add(0, e.getBbHeight() * 0.6, 0);
+    }
+
+    /**
+     * Where a ballista's bolt sets off at one: on the line from the engine to it, just past the tower's side (so a
+     * steep shot down at one close under the tower doesn't go into the tower's own top); null if anything stands in
+     * the way from there.
+     */
+    private static Vec3 boltFrom(ServerLevel level, Structure s, net.minecraft.world.entity.LivingEntity e) {
+        Vec3 seat = EngineModels.seat(s).add(0, 0.85, 0), aim = boltAim(e), line = aim.subtract(seat);
+        double flat = line.horizontalDistance(), side = Math.max(-s.type.x0, s.type.x1) + 0.9;
+        // (out across the tower's square top: further along a diagonal)
+        double out = side / Math.max(Math.max(Math.abs(line.x), Math.abs(line.z)) / Math.max(flat, 1e-6), 0.5);
+        if (flat <= out + 0.5) return null;
+        Vec3 from = seat.add(line.scale(out / flat));
+        BlockPos at = BlockPos.containing(from);
+        if (!level.getBlockState(at).getCollisionShape(level, at).isEmpty()) return null;
+        var hit = level.clip(new net.minecraft.world.level.ClipContext(from, aim, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, net.minecraft.world.phys.shapes.CollisionContext.empty()));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? from : null;
     }
 
     /** Is this one an enemy of a realm's (enemy soldiers, monsters)? */

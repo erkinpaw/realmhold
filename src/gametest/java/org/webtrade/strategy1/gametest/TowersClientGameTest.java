@@ -154,7 +154,30 @@ public class TowersClientGameTest implements FabricClientGameTest {
             server.runOnServer(s -> {
                 long models = s.overworld().getEntities(EntityTypes.BLOCK_DISPLAY, e -> e.entityTags().contains("s1engine")).size();
                 log("engine models: {} blocks", models);
-                if (models < 12) throw new AssertionError("no engine models");
+                if (models < 9) throw new AssertionError("no engine models");
+            });
+            // the ballista at one close under its tower: its bolts go out past the tower's top and reach him
+            int[] close = new int[1];
+            server.runOnServer(s -> {
+                Structure w = StrategyData.get(s).structures.get(ids[0]);
+                Zombie z = zombie(s.overworld(), w.origin.getX() + 5.5, w.origin.getZ() + 3.5);
+                z.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(400);
+                z.setHealth(400);
+                close[0] = z.getId();
+            });
+            boolean[] struck = new boolean[1];
+            for (int t = 0; t < 60 && !struck[0]; t++) {
+                context.waitTicks(2);
+                server.runOnServer(s -> {
+                    if (!(s.overworld().getEntity(close[0]) instanceof Zombie z) || z.getLastDamageSource() == null) return;
+                    var by = z.getLastDamageSource().getDirectEntity();
+                    if (by != null && by.entityTags().contains(org.webtrade.strategy1.entity.ShieldZombie.BOLT)) struck[0] = true;
+                });
+            }
+            server.runOnServer(s -> {
+                log("the ballista's bolt at one close under the tower: {}", struck[0]);
+                if (s.overworld().getEntity(close[0]) != null) s.overworld().getEntity(close[0]).discard();
+                if (!struck[0]) throw new AssertionError("the ballista can't shoot close");
                 Structure w = StrategyData.get(s).structures.get(ids[0]), st = StrategyData.get(s).structures.get(ids[1]);
                 dead[0] = zombie(s.overworld(), w.origin.getX() + 22, w.origin.getZ() + 6).getId();
                 dead[1] = zombie(s.overworld(), st.origin.getX() - 26, st.origin.getZ() + 4).getId();
@@ -214,6 +237,33 @@ public class TowersClientGameTest implements FabricClientGameTest {
                 log("bowmen in a file: their hurt {}, the zombie alive {}", hurt, alive);
                 if (hurt > 0 || alive) throw new AssertionError("bowmen in a file");
             });
+            // by night their arrows are lit
+            server.runCommand("time set 18000");
+            server.runOnServer(s -> {
+                SoldierEntity a = SoldierEntity.spawn(s.overworld(), UnitType.ARCHER, me(s).id, me(s).color, new Vec3(cx + 4, 0, cz + 40), UnitEntity.Role.ARMY);
+                a.order(SoldierEntity.Mode.HOLD, a.position());
+                Zombie z = zombie(s.overworld(), cx + 18, cz + 40);
+                z.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(300);
+                z.setHealth(300);
+            });
+            context.runOnClient(mc -> {
+                RtsScreen.choose(Set.of(), -1);
+                Rts.jump(cx + 11, cz + 36);
+                Rts.distance = 16;
+                Rts.yaw = 0;
+            });
+            boolean[] lit = new boolean[1];
+            for (int t = 0; t < 40 && !lit[0]; t++) {
+                context.waitTicks(3);
+                server.runOnServer(s -> {
+                    for (var a : s.overworld().getEntitiesOfClass(net.minecraft.world.entity.projectile.arrow.Arrow.class, new net.minecraft.world.phys.AABB(cx - 10, -64, cz + 30, cx + 30, 320, cz + 50),
+                            a -> a.isOnFire() && !a.entityTags().contains(org.webtrade.strategy1.entity.ShieldZombie.BOLT))) lit[0] = true;
+                });
+            }
+            log("fire arrows by night: {}", lit[0]);
+            if (!lit[0]) throw new AssertionError("no fire arrows by night");
+            context.takeScreenshot("fire_arrows");
+            server.runCommand("time set 6000");
             context.runOnClient(mc -> {
                 RtsScreen.choose(Set.of(), ids[1]);
                 mc.gui.setScreen(new RtsScreen());
@@ -223,6 +273,19 @@ public class TowersClientGameTest implements FabricClientGameTest {
             });
             context.waitTicks(60);
             context.takeScreenshot("tower_stone_reach");
+            // the field catapult and the trebuchet close up (their parts' own models)
+            server.runOnServer(s -> {
+                org.webtrade.strategy1.entity.SiegeEntity.spawn(s.overworld(), org.webtrade.strategy1.entity.SiegeEntity.Kind.CATAPULT, me(s).id, me(s).color, new Vec3(cx + 4, 0, cz + 50), null).setYRot(30);
+                org.webtrade.strategy1.entity.SiegeEntity.spawn(s.overworld(), org.webtrade.strategy1.entity.SiegeEntity.Kind.TREBUCHET, me(s).id, me(s).color, new Vec3(cx + 10, 0, cz + 50), null).setYRot(30);
+            });
+            context.runOnClient(mc -> {
+                RtsScreen.choose(Set.of(), -1);
+                Rts.jump(cx + 7, cz + 50);
+                Rts.distance = 9;
+                Rts.yaw = 210;
+            });
+            context.waitTicks(40);
+            context.takeScreenshot("field_engines");
             context.runOnClient(mc -> Rts.exit(mc));
             context.waitTicks(10);
         }

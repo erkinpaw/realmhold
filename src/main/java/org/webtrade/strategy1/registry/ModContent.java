@@ -44,6 +44,9 @@ public final class ModContent {
             EntityType.Builder.<org.webtrade.strategy1.entity.BomberZombie>of(org.webtrade.strategy1.entity.BomberZombie::new, MobCategory.MONSTER)
                     .sized(0.6F, 1.95F).eyeHeight(1.74F).noLootTable().clientTrackingRange(10));
 
+    /** The engines' parts, shown by display entities (never set in the world). */
+    public static final net.minecraft.world.level.block.Block PART = block("part", PartBlock::new);
+
     private ModContent() {
     }
 
@@ -56,6 +59,13 @@ public final class ModContent {
         FabricDefaultAttributeRegistry.register(WARSHIP, org.webtrade.strategy1.entity.ShipEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(SHIELD_ZOMBIE, net.minecraft.world.entity.monster.zombie.Zombie.createAttributes());
         FabricDefaultAttributeRegistry.register(BOMBER_ZOMBIE, net.minecraft.world.entity.monster.zombie.Zombie.createAttributes());
+    }
+
+    private static net.minecraft.world.level.block.Block block(String name,
+            java.util.function.Function<net.minecraft.world.level.block.state.BlockBehaviour.Properties, net.minecraft.world.level.block.Block> make) {
+        ResourceKey<net.minecraft.world.level.block.Block> key = ResourceKey.create(Registries.BLOCK, Strategy1.id(name));
+        return Registry.register(BuiltInRegistries.BLOCK, key, make.apply(net.minecraft.world.level.block.state.BlockBehaviour.Properties.of()
+                .setId(key).noLootTable().noOcclusion().noCollision().instabreak()));
     }
 
     private static <T extends net.minecraft.world.entity.Entity> EntityType<T> entity(String name, EntityType.Builder<T> builder) {
