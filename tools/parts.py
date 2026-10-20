@@ -3,7 +3,8 @@ Makes the block models of the engines' parts (the towers' ballista and catapult,
 beams of wood, wheels, a cup, a bolt, each a box with its texture laid on at the world's own scale (one texel a
 sixteenth of a block, the bark along the beam), so nothing looks stretched as a scaled whole block does. They're the
 states of one unseen block, strategy1:part, shown by display entities that turn and move them.
-Run: python tools/parts.py  (writes the blockstate, the models and registry/Parts.java).
+Also what the siege's dead carry (a ram, boils, guts). Run: python tools/parts.py  (writes the blockstate, the models,
+the mod's own textures and registry/Parts.java).
 """
 import json
 import math
@@ -78,7 +79,75 @@ PARTS = [
         b('dark_oak_log', 'y', -0.06, 3.0, 1.24, 0.06, 3.3, 1.36)]),
     ('trebuchet_brace', (0, 0, 0), [b('oak_log', 'z', 0, 0, 0, 0.25, 0.25, 1.6)]),
     ('trebuchet_arm', (0, 0, 0), [b('stripped_oak_log', 'z', 0, 0, 0, 0.25, 0.25, 2.0)]),
+    # what the siege's dead carry, in the frame of their body (from the neck, up +y, their front -z)
+    # the ram-bearer's log, iron-headed, held before him under his arms
+    ('ram_log', None, [
+        b('oak_log', 'z', -0.16, -0.36, -1.45, 0.16, -0.04, 0.3),
+        b('iron_block', None, -0.2, -0.4, -1.62, 0.2, 0.0, -1.45),
+        b('iron_block', None, -0.18, -0.38, -1.12, 0.18, -0.02, -1.04),
+        b('iron_block', None, -0.18, -0.38, -0.32, 0.18, -0.02, -0.24),
+        b('dark_oak_planks', None, -0.17, -0.06, -0.62, 0.17, 0.0, -0.5)]),
+    # the plague-bearer's swollen belly and the boils on his back and shoulders
+    ('plague_boils', None, [
+        b('boil', None, -0.3, -0.7, -0.36, 0.3, -0.16, -0.12),
+        b('boil', None, -0.22, -0.62, -0.44, 0.18, -0.26, -0.35),
+        b('boil', None, -0.12, -0.55, -0.5, 0.08, -0.36, -0.43),
+        b('boil', None, -0.28, -0.5, 0.12, -0.02, -0.2, 0.26),
+        b('boil', None, 0.02, -0.72, 0.12, 0.26, -0.48, 0.24),
+        b('boil', None, 0.0, -0.24, 0.12, 0.2, -0.04, 0.28),
+        b('boil', None, -0.38, -0.1, -0.12, -0.18, 0.08, 0.12),
+        b('boil', None, 0.2, -0.08, -0.1, 0.36, 0.07, 0.1)]),
+    # the crawler's guts, out of what's left of him below the waist; a bit of the spine
+    ('crawler_guts', None, [
+        b('guts', None, -0.25, -0.8, -0.13, 0.25, -0.73, 0.13),
+        b('guts', None, -0.16, -0.92, -0.09, 0.04, -0.78, 0.07),
+        b('guts', None, 0.0, -1.04, -0.06, 0.15, -0.88, 0.08),
+        b('guts', None, -0.11, -1.16, -0.05, 0.05, -1.0, 0.07),
+        b('guts', None, 0.06, -1.3, -0.04, 0.17, -1.12, 0.06),
+        b('guts', None, -0.2, -1.0, 0.0, -0.08, -0.86, 0.1),
+        b('bone_block', None, -0.04, -0.94, 0.05, 0.04, -0.75, 0.12)]),
 ]
+
+# textures of the mod's own (drawn here), not the game's
+OWN = {'guts', 'boil'}
+
+
+def texture(tex):
+    return ('strategy1:block/' if tex in OWN else 'minecraft:block/') + tex
+
+
+def draw_textures():
+    """The guts (coiled, wet, red and pink) and a boil (sick green skin, yellow pustules), 16x16."""
+    import random
+    from PIL import Image
+    out = os.path.join(ASSETS, 'textures', 'block')
+    os.makedirs(out, exist_ok=True)
+    rnd = random.Random(7)
+    g = Image.new('RGBA', (16, 16))
+    for y in range(16):
+        for x in range(16):
+            # coils: bands that bend, dark in the folds, light where they bulge
+            v = math.sin((x + 3 * math.sin(y * 0.9)) * 0.9) * 0.5 + 0.5
+            red = int(120 + 100 * v + rnd.randint(-12, 12))
+            g.putpixel((x, y), (min(255, red), int(40 + 70 * v * v) + rnd.randint(-8, 8), int(50 + 60 * v * v) + rnd.randint(-8, 8), 255))
+    for _ in range(6):
+        g.putpixel((rnd.randint(0, 15), rnd.randint(0, 15)), (250, 190, 190, 255))
+    g.save(os.path.join(out, 'guts.png'))
+    b = Image.new('RGBA', (16, 16))
+    for y in range(16):
+        for x in range(16):
+            n = rnd.randint(-14, 14)
+            b.putpixel((x, y), (96 + n, 132 + n, 58 + n // 2, 255))
+    for cx, cy, rad in ((4, 4, 2.6), (11, 6, 2.0), (6, 11, 2.2), (12, 12, 1.6), (1, 9, 1.2)):
+        for y in range(16):
+            for x in range(16):
+                d = math.hypot(x - cx, y - cy)
+                if d < rad:
+                    k = 1 - d / rad
+                    b.putpixel((x, y), (int(170 + 80 * k), int(170 + 60 * k), int(60 + 30 * k), 255))
+                elif d < rad + 0.8:
+                    b.putpixel((x, y), (70, 84, 36, 255))
+    b.save(os.path.join(out, 'boil.png'))
 
 FACES = ('down', 'up', 'north', 'south', 'west', 'east')
 
@@ -134,9 +203,9 @@ def faces(tex, axis, f, t):
 def model(origin, boxes):
     textures, elements = {}, []
     for tex, axis, f, t in boxes:
-        textures[tex] = 'minecraft:block/' + tex
+        textures[tex] = texture(tex)
         if axis:
-            textures[tex + '_top'] = 'minecraft:block/' + tex + '_top'
+            textures[tex + '_top'] = texture(tex) + '_top'
         a = [(f[i] - origin[i]) * 16 for i in range(3)]
         c = [(t[i] - origin[i]) * 16 for i in range(3)]
         for v in a + c:
@@ -162,6 +231,7 @@ def fit(boxes):
 
 
 def main():
+    draw_textures()
     os.makedirs(os.path.join(ASSETS, 'models', 'block', 'part'), exist_ok=True)
     os.makedirs(os.path.join(ASSETS, 'blockstates'), exist_ok=True)
     variants, consts, origins = {}, [], []

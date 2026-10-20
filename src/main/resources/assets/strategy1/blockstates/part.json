@@ -35,6 +35,15 @@
   },
   "part=11": {
    "model": "strategy1:block/part/trebuchet_arm"
+  },
+  "part=12": {
+   "model": "strategy1:block/part/ram_log"
+  },
+  "part=13": {
+   "model": "strategy1:block/part/plague_boils"
+  },
+  "part=14": {
+   "model": "strategy1:block/part/crawler_guts"
   }
  }
 }
