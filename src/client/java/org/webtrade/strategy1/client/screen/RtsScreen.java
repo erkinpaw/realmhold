@@ -107,8 +107,8 @@ public class RtsScreen extends Screen {
 
     private double pressX, pressY;
     private boolean boxing;
-    /** Where the chosen structure was clicked (a wall: where a gate would go). */
-    private static BlockPos clicked;
+    /** The wall a gate is being put in (it goes along the wall with the mouse), or -1. */
+    private static int gating = -1;
     /** The enemy last pointed out to a tower (marked over its head). */
     private static int aimed = -1;
     private int seenRevision = -1, seenStructures = -1, seenSelection = -1;
@@ -156,6 +156,16 @@ public class RtsScreen extends Screen {
         SELECTED.clear();
         SELECTED.addAll(units);
         structure = structureId;
+    }
+
+    /** A gate to be put in this wall (as its button does): it goes along the wall with the mouse. */
+    public static void cutGate(int wall) {
+        gating = wall;
+    }
+
+    /** Where a point of the world is on the screen (the GUI's scale), or null if behind. */
+    public Vec3 screenPoint(Vec3 world) {
+        return project(world);
     }
 
     public static void showBuild(boolean on) {
@@ -412,11 +422,14 @@ public class RtsScreen extends Screen {
             }
             i++;
         }
-        if (t.wall() && built && clicked != null) {
-            int dx = clicked.getX() - st.box()[0], dz = clicked.getZ() - st.box()[2];
+        if (t.wall() && built && st.ends() != null) {
             add(i++, Icons.of("gate"), new IconButton.Info(Component.translatable("strategy1.rts.gate_make"), StructureType.GATE.cost(3),
                     Component.translatable("strategy1.rts.gate_make_tip"), List.of(Component.translatable("strategy1.build.gate.info").withStyle(ChatFormatting.GRAY))),
-                    canPay(me, StructureType.GATE.cost(3)), () -> structureAction(st.id(), Payloads.StructureAction.GATE, Payloads.StructureAction.pack(dx, dz)));
+                    canPay(me, StructureType.GATE.cost(3)), () -> {
+                        gating = gating == st.id() ? -1 : st.id();
+                        placing = null;
+                        rebuildWidgets();
+                    }).chosen(gating == st.id());
         }
         if (t == StructureType.GATE && built) {
             add(i++, Icons.of("gate"), new IconButton.Info(Component.translatable("strategy1.rts.gate_hold"), null, Component.translatable("strategy1.rts.gate_hold_tip")),
@@ -662,6 +675,17 @@ public class RtsScreen extends Screen {
                 ClientPlayNetworking.send(new Payloads.ChooseSite(p.block.getX() + 0.5, p.block.getZ() + 0.5));
             return true;
         }
+        if (gating >= 0) {
+            GateSpot at = gateSpot(event.x(), event.y());
+            if (event.button() == 0 && at != null && at.ok) {
+                Payloads.StructureInfo w = ClientState.STRUCTURES.get(gating);
+                structureAction(gating, Payloads.StructureAction.GATE, Payloads.StructureAction.pack(at.middle[0] - w.box()[0], at.middle[1] - w.box()[2]));
+                if ((event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0) return true;
+            } else if (event.button() == 0) return true;
+            gating = -1;
+            rebuildWidgets();
+            return true;
+        }
         if (placing != null) {
             if (event.button() == 1) {
                 placing = null;
@@ -736,7 +760,6 @@ public class RtsScreen extends Screen {
                     else SELECTED.add(p.entity.getId());
                 } else if (p.structure != null && !add) {
                     structure = p.structure.id();
-                    clicked = p.block;
                 }
             } else {
                 for (UnitEntity s : unitsNear()) {
@@ -762,6 +785,11 @@ public class RtsScreen extends Screen {
         int k = event.key();
         boolean ctrl = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
         if (k == GLFW.GLFW_KEY_ESCAPE) {
+            if (gating >= 0) {
+                gating = -1;
+                rebuildWidgets();
+                return true;
+            }
             if (placing != null || structure >= 0 || !SELECTED.isEmpty()) {
                 placing = null;
                 lineStart = null;
@@ -792,6 +820,7 @@ public class RtsScreen extends Screen {
         if (k == GLFW.GLFW_KEY_TAB) {
             tab = Tab.values()[(tab.ordinal() + 1) % Tab.values().length];
             placing = null;
+            gating = -1;
             lineStart = null;
             structure = -1;
             SELECTED.clear();
@@ -832,6 +861,7 @@ public class RtsScreen extends Screen {
         monsters(g);
         captures(g);
         if (ClientState.choosingSite()) site(g, mx, my);
+        else if (gating >= 0) gatePreview(g, mx, my);
         else if (placing != null) preview(g, mx, my);
         else hovered(g, mx, my);
         if (boxing && (Math.abs(mx - pressX) > 3 || Math.abs(my - pressY) > 3)) {
@@ -1270,7 +1300,80 @@ public class RtsScreen extends Screen {
                 ring(g, door, placing == StructureType.PORT ? 2.5 : 1.5, wet ? 0xFF60D0FF : 0xFFFF5040);
             }
         }
-        // the cost by the cursor, in pictures
+        cost(g, cost, mx, my);
+    }
+
+    /** Where a gate would go in the wall being cut: its middle column and its ends, and whether it can go there. */
+    private record GateSpot(int[] middle, int[] a, int[] b, int y, int height, boolean ok) {
+    }
+
+    /** Where the gate goes for the mouse there: the wall's column nearest the ground under it (not at the wall's very ends). */
+    private GateSpot gateSpot(double mx, double my) {
+        Payloads.StructureInfo w = ClientState.STRUCTURES.get(gating);
+        int[] e = w == null ? null : w.ends();
+        if (e == null) {
+            gating = -1;
+            return null;
+        }
+        Pick p = pick(mx, my);
+        if (p.block == null) return null;
+        List<int[]> cols = org.webtrade.strategy1.build.Structures.wallColumns(new BlockPos(e[0], 0, e[1]), new BlockPos(e[2], 0, e[3]));
+        int best = 0;
+        double bestD = Double.MAX_VALUE;
+        for (int i = 0; i < cols.size(); i++) {
+            double d = Math.hypot(cols.get(i)[0] - p.block.getX(), cols.get(i)[1] - p.block.getZ());
+            if (d < bestD) {
+                bestD = d;
+                best = i;
+            }
+        }
+        boolean ok = cols.size() >= 5;
+        best = Math.clamp(best, Math.min(1, cols.size() - 1), Math.max(0, cols.size() - 2));
+        int[] a = cols.get(Math.max(0, best - 1)), b = cols.get(Math.min(best + 1, cols.size() - 1));
+        // (not where there's a gate already)
+        for (Payloads.StructureInfo o : ClientState.STRUCTURES.values()) {
+            if (o.type() == StructureType.GATE.ordinal() && Math.hypot(o.aabb().getCenter().x - cols.get(best)[0] - 0.5, o.aabb().getCenter().z - cols.get(best)[1] - 0.5) < 4.5) ok = false;
+        }
+        int h = w.type() == StructureType.WALL_STONE.ordinal() ? 6 : 5;
+        return new GateSpot(cols.get(best), a, b, w.box()[1], h, ok && canPay(ClientState.mine(), StructureType.GATE.cost(3)));
+    }
+
+    /** The gate being put in a wall, outlined where it would go (green where it can, red where not), and its cost. */
+    private void gatePreview(GuiGraphicsExtractor g, int mx, int my) {
+        if (my > height - BAR || my < TOP) return;
+        GateSpot at = gateSpot(mx, my);
+        if (at == null) return;
+        Payloads.StructureInfo w = ClientState.STRUCTURES.get(gating);
+        double ax = at.a[0] + 0.5, az = at.a[1] + 0.5, bx = at.b[0] + 0.5, bz = at.b[1] + 0.5;
+        double len = Math.max(1e-6, Math.hypot(bx - ax, bz - az)), ux = (bx - ax) / len, uz = (bz - az) / len;
+        // (as thick as the wall: a stone wall's second course to the side)
+        boolean stone = w.type() == StructureType.WALL_STONE.ordinal();
+        double px = -uz, pz = ux, n0 = -0.55, n1 = stone ? 1.55 : 0.55;
+        if (stone) {
+            boolean along = Math.abs(bx - ax) >= Math.abs(bz - az);
+            px = along ? 0 : 1;
+            pz = along ? 1 : 0;
+        }
+        ax -= ux * 0.5;
+        az -= uz * 0.5;
+        bx += ux * 0.5;
+        bz += uz * 0.5;
+        Vec3[] c = {new Vec3(ax + px * n0, at.y, az + pz * n0), new Vec3(bx + px * n0, at.y, bz + pz * n0),
+                new Vec3(bx + px * n1, at.y, bz + pz * n1), new Vec3(ax + px * n1, at.y, az + pz * n1)};
+        int col = at.ok ? 0xFF60FF60 : 0xFFFF5040;
+        for (int i = 0; i < 4; i++) {
+            line(g, c[i], c[(i + 1) % 4], col);
+            line(g, c[i].add(0, at.height, 0), c[(i + 1) % 4].add(0, at.height, 0), col);
+            line(g, c[i], c[i].add(0, at.height, 0), col);
+        }
+        // the way through, across the wall
+        Vec3 mid = new Vec3(at.middle[0] + 0.5 + px * (n0 + n1) / 2, at.y + 0.1, at.middle[1] + 0.5 + pz * (n0 + n1) / 2);
+        line(g, mid.add(px * -1.5, 0, pz * -1.5), mid.add(px * 1.5, 0, pz * 1.5), 0xFFFFFFFF);
+        cost(g, StructureType.GATE.cost(3), mx, my);
+    }
+
+    /** The cost by the cursor, in pictures. */
+    private void cost(GuiGraphicsExtractor g, int[] cost, int mx, int my) {
         var me = ClientState.mine();
         int cx = mx + 12, cy = my + 12;
         for (int i = 0; i < Res.COUNT; i++) {

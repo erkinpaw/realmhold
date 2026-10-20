@@ -208,7 +208,8 @@ public final class Payloads {
     /** A structure as the players see it: kind, holder, box, strength, how far built, archers on it. */
     /**
      * A structure as the client sees it. {@code more}: where its new units come out (x, y, z), its gathering point
-     * (x, z), what's left to dig there (or −1), its gate (−1 none, 0 shut, 1 open by hand) — {@link #NONE} where there's none.
+     * (x, z), what's left to dig there (or −1), its gate (−1 none, 0 shut, 1 open by hand), whether it's open, a wall's
+     * ends (x, z, x, z) — {@link #NONE} where there's none.
      */
     public record StructureInfo(int id, int type, int owner, int[] box, int hp, int maxHp, int built, int archers, int posts, int engine, int[] more) {
         public static final int NONE = Integer.MIN_VALUE;
@@ -231,6 +232,11 @@ public final class Payloads {
 
         public boolean open() {
             return more.length >= 8 && more[7] == 1;
+        }
+
+        /** A wall's two ends (x, z, x, z), or null. */
+        public int[] ends() {
+            return more.length < 12 || more[8] == NONE ? null : new int[]{more[8], more[9], more[10], more[11]};
         }
 
         void write(FriendlyByteBuf b) {

@@ -223,6 +223,8 @@ public class SoldierEntity extends UnitEntity {
         ItemStack arrowStack = new ItemStack(Items.ARROW);
         Arrow arrow = new Arrow(sl, this, arrowStack, getMainHandItem());
         arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
+        // fire arrows by night, and from a tower with its brazier lit: whoever they strike burns
+        if (fireArrows(sl)) arrow.igniteForSeconds(100);
         if (mode == Mode.POSTED || isPassenger()) {
             // (from a tower, a wall or a deck: out over the parapet, not into it)
             Vec3 out = new Vec3(target.getX() - getX(), 0, target.getZ() - getZ()).normalize().scale(0.9);
@@ -236,6 +238,15 @@ public class SoldierEntity extends UnitEntity {
         Projectile.spawnProjectileUsingShoot(arrow, sl, arrowStack, dx, dy + drop, dz, speed, flat > 30 ? 3F : 4F);
         playSound(SoundEvents.SKELETON_SHOOT, 1.0F, 1.0F / (random.nextFloat() * 0.4F + 0.8F));
         swing(InteractionHand.MAIN_HAND);
+    }
+
+    /** Whether this one's arrows are lit: by night, or posted on a tower with a brazier on its top. */
+    private boolean fireArrows(ServerLevel level) {
+        long t = level.getOverworldClockTime() % 24000;
+        if (t >= 12800 && t < 23200) return true;
+        if (mode != Mode.POSTED || data() == null) return false;
+        org.webtrade.strategy1.build.Structure st = data().structures.get(structure);
+        return st != null && st.engine == 3;
     }
 
     /** The healer at work: the realm's own (and allies) round him, hurt, a little better; hearts over them, a ring of light round him. */
