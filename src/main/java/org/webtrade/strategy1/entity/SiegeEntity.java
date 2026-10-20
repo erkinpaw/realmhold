@@ -9,14 +9,15 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 import org.webtrade.strategy1.game.StrategyManager;
 import org.webtrade.strategy1.registry.ModContent;
+import org.webtrade.strategy1.registry.Parts;
 
 import java.util.List;
 
@@ -101,36 +102,28 @@ public class SiegeEntity extends UnitEntity {
 
     private List<Puppet.Part> model() {
         BlockState flag = Dyes.wool(color()).defaultBlockState();
-        BlockState wheel = Blocks.DARK_OAK_LOG.defaultBlockState(), log = Blocks.OAK_LOG.defaultBlockState();
         if (kind() == Kind.CATAPULT) {
             return List.of(
-                    Puppet.Part.of(Blocks.SPRUCE_PLANKS.defaultBlockState(), -0.9F, 0.35F, -1.1F, 1.8F, 0.25F, 2.2F),
-                    Puppet.Part.of(wheel, -1.15F, 0, -0.95F, 0.25F, 0.7F, 0.7F),
-                    Puppet.Part.of(wheel, 0.9F, 0, -0.95F, 0.25F, 0.7F, 0.7F),
-                    Puppet.Part.of(wheel, -1.15F, 0, 0.35F, 0.25F, 0.7F, 0.7F),
-                    Puppet.Part.of(wheel, 0.9F, 0, 0.35F, 0.25F, 0.7F, 0.7F),
-                    Puppet.Part.of(log, -0.75F, 0.6F, 0.1F, 0.2F, 1.0F, 0.2F),
-                    Puppet.Part.of(log, 0.55F, 0.6F, 0.1F, 0.2F, 1.0F, 0.2F),
-                    Puppet.Part.of(log, -0.75F, 1.5F, 0.1F, 1.5F, 0.2F, 0.2F),
-                    new Puppet.Part(Blocks.STRIPPED_SPRUCE_LOG.defaultBlockState(), -0.1F, 0.62F, -1.0F, 0.2F, 0.2F, 2.0F, -28),
-                    Puppet.Part.of(Blocks.COBBLESTONE.defaultBlockState(), -0.25F, 0.6F, -1.1F, 0.5F, 0.3F, 0.5F),
+                    part(Parts.SIEGE_CATAPULT, Parts.at(Parts.SIEGE_CATAPULT), 0),
+                    part(Parts.SIEGE_CATAPULT_ARM, new Vector3f(-0.1F, 0.62F, -1.0F), -28),
                     Puppet.Part.of(flag, 0.62F, 1.7F, 0.1F, 0.05F, 0.4F, 0.5F));
         }
+        // (the arm in two lengths, the second on from the end of the first)
+        Vector3f arm = new Vector3f(-0.12F, 3.35F, -2.8F);
+        Vector3f arm2 = new org.joml.Quaternionf().rotationX((float) Math.toRadians(22)).transform(new Vector3f(0, 0, 2.0F)).add(arm);
         return List.of(
-                Puppet.Part.of(Blocks.SPRUCE_PLANKS.defaultBlockState(), -1.2F, 0.25F, -1.5F, 2.4F, 0.3F, 3.0F),
-                Puppet.Part.of(wheel, -1.45F, 0, -1.3F, 0.25F, 0.8F, 0.8F),
-                Puppet.Part.of(wheel, 1.2F, 0, -1.3F, 0.25F, 0.8F, 0.8F),
-                Puppet.Part.of(wheel, -1.45F, 0, 0.6F, 0.25F, 0.8F, 0.8F),
-                Puppet.Part.of(wheel, 1.2F, 0, 0.6F, 0.25F, 0.8F, 0.8F),
-                Puppet.Part.of(log, -1.05F, 0.55F, -0.15F, 0.25F, 2.9F, 0.3F),
-                Puppet.Part.of(log, 0.8F, 0.55F, -0.15F, 0.25F, 2.9F, 0.3F),
-                new Puppet.Part(log, -1.05F, 0.55F, -1.2F, 0.25F, 0.25F, 1.6F, -55),
-                new Puppet.Part(log, 0.8F, 0.55F, -1.2F, 0.25F, 0.25F, 1.6F, -55),
-                Puppet.Part.of(log, -1.05F, 3.3F, -0.1F, 2.1F, 0.2F, 0.2F),
-                new Puppet.Part(Blocks.STRIPPED_OAK_LOG.defaultBlockState(), -0.12F, 3.35F, -2.8F, 0.25F, 0.25F, 4.4F, 22),
-                Puppet.Part.of(Blocks.COBBLESTONE.defaultBlockState(), -0.5F, 1.9F, 0.8F, 1.0F, 1.0F, 1.0F),
-                Puppet.Part.of(Blocks.IRON_BARS.defaultBlockState(), -0.4F, 2.9F, 0.9F, 0.8F, 0.3F, 0.8F),
+                part(Parts.TREBUCHET_BASE, Parts.at(Parts.TREBUCHET_BASE), 0),
+                part(Parts.TREBUCHET_FRAME, Parts.at(Parts.TREBUCHET_FRAME), 0),
+                part(Parts.TREBUCHET_BRACE, new Vector3f(-1.05F, 0.55F, -1.2F), -55),
+                part(Parts.TREBUCHET_BRACE, new Vector3f(0.8F, 0.55F, -1.2F), -55),
+                part(Parts.TREBUCHET_ARM, arm, 22),
+                part(Parts.TREBUCHET_ARM, arm2, 22),
                 Puppet.Part.of(flag, 0.88F, 3.5F, -0.1F, 0.05F, 0.5F, 0.6F));
+    }
+
+    /** One of the engine's parts (its own model, at the world's scale), there and tilted so (degrees, round x). */
+    private static Puppet.Part part(int part, Vector3f at, float tilt) {
+        return new Puppet.Part(Parts.state(part), at.x, at.y, at.z, 1, 1, 1, tilt);
     }
 
     // ------------------------------------------------------------------ its day

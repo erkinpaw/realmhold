@@ -160,7 +160,7 @@ public enum StructureType {
 
     /** How far a tower's engine reaches (1 ballista, 2 catapult, 3 fire): a stone tower's further. */
     public double engineReach(int engine) {
-        double r = engine == 1 ? 40 : engine == 2 ? 44 : engine == 3 ? 14 : 0;
+        double r = engine == 1 ? 48 : engine == 2 ? 44 : engine == 3 ? 14 : 0;
         return this == TOWER_STONE ? r * 1.2 : r;
     }
 

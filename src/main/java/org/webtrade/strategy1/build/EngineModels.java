@@ -1,14 +1,12 @@
 package org.webtrade.strategy1.build;
 
 import com.mojang.math.Transformation;
-import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -18,6 +16,7 @@ import org.webtrade.strategy1.game.StrategyData;
 import org.webtrade.strategy1.game.StrategyManager;
 import org.webtrade.strategy1.mixin.BlockDisplayAccess;
 import org.webtrade.strategy1.mixin.DisplayAccess;
+import org.webtrade.strategy1.registry.Parts;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,8 +25,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The engines on the towers, as models (blocks shown, not set in the world; logs laid along their length, so nothing
- * looks stretched): a ballista and a catapult that turn to what they shoot at and move when they shoot. The ballista's
+ * The engines on the towers, as models (their parts' own block models shown, not set in the world, the wood's grain
+ * along each beam at the world's own scale, so nothing looks stretched): a ballista and a catapult that turn to what they shoot at and move when they shoot. The ballista's
  * arms fling forward and its string snaps to the bow as its bolt flies; it's wound back and a new bolt laid on. The
  * catapult's arm swings up round its axle against the crossbar and lets its stone go, and is wound down again.
  */
@@ -142,24 +141,13 @@ final class EngineModels {
         return d;
     }
 
-    /** A log lying along an axis (its bark runs the length of the beam, its rings at the ends: nothing stretched). */
-    private static BlockState log(net.minecraft.world.level.block.Block b, Direction.Axis axis) {
-        return b.defaultBlockState().setValue(RotatedPillarBlock.AXIS, axis);
-    }
-
     private static void make(ServerLevel level, Structure s, Model m) {
         Vec3 at = seat(s);
         BlockState string = Blocks.WOOL.pick(net.minecraft.world.item.DyeColor.WHITE).defaultBlockState();
         BlockState[] kit = m.engine == 1
-                ? new BlockState[]{
-                log(Blocks.SPRUCE_LOG, Direction.Axis.Y), log(Blocks.STRIPPED_SPRUCE_LOG, Direction.Axis.Z),
-                log(Blocks.SPRUCE_LOG, Direction.Axis.X), log(Blocks.SPRUCE_LOG, Direction.Axis.X), string, string,
-                log(Blocks.STRIPPED_DARK_OAK_LOG, Direction.Axis.Z), Blocks.IRON_BLOCK.defaultBlockState()}
-                : new BlockState[]{
-                log(Blocks.SPRUCE_LOG, Direction.Axis.Z), log(Blocks.SPRUCE_LOG, Direction.Axis.Z), log(Blocks.SPRUCE_LOG, Direction.Axis.X),
-                log(Blocks.SPRUCE_LOG, Direction.Axis.Y), log(Blocks.SPRUCE_LOG, Direction.Axis.Y), log(Blocks.SPRUCE_LOG, Direction.Axis.X),
-                log(Blocks.STRIPPED_SPRUCE_LOG, Direction.Axis.X), log(Blocks.STRIPPED_OAK_LOG, Direction.Axis.Z),
-                Blocks.COMPOSTER.defaultBlockState(), Blocks.COBBLESTONE.defaultBlockState()};
+                ? new BlockState[]{Parts.state(Parts.BALLISTA_BASE), Parts.state(Parts.BALLISTA_ARM_LEFT), Parts.state(Parts.BALLISTA_ARM_RIGHT),
+                string, string, Parts.state(Parts.BALLISTA_BOLT)}
+                : new BlockState[]{Parts.state(Parts.CATAPULT_FRAME), Parts.state(Parts.CATAPULT_ARM), Blocks.COBBLESTONE.defaultBlockState()};
         for (BlockState b : kit) {
             Display.BlockDisplay d = part(level, at, b);
             if (d != null) m.parts.add(d);
@@ -180,9 +168,9 @@ final class EngineModels {
         a.strategy1$setTransformation(new Transformation(t, new Quaternionf(q), size, new Quaternionf()));
     }
 
-    /** An unturned box from one corner to the other. */
-    private static void box(Display.BlockDisplay d, float x0, float y0, float z0, float x1, float y1, float z1, int ticks) {
-        box(d, new Vector3f(x0, y0, z0), new Quaternionf(), new Vector3f(), new Vector3f(x1 - x0, y1 - y0, z1 - z0), ticks);
+    /** A part's model turned by {@code q} round {@code pivot} (where its model's own origin is), {@code k} its size. */
+    private static void part(Display.BlockDisplay d, Vector3f pivot, Quaternionf q, float k, int ticks) {
+        box(d, pivot, q, new Vector3f(), new Vector3f(k, k, k), ticks);
     }
 
     private static final float GONE = 0.001F;
@@ -194,24 +182,22 @@ final class EngineModels {
     private static final float B_BOW_Z = 0.72F, B_ARM = 0.95F, B_Y = 0.67F;
 
     private static void ballista(List<Display.BlockDisplay> p, int since, int ticks) {
-        box(p.get(0), -0.15F, 0, -0.15F, 0.15F, 0.55F, 0.15F, ticks);
-        box(p.get(1), -0.12F, 0.55F, -0.95F, 0.12F, 0.79F, 0.95F, ticks);
+        part(p.get(0), Parts.at(Parts.BALLISTA_BASE), new Quaternionf(), 1, ticks);
         // the bow's arms, swept back while it's drawn
         boolean drawn = since >= B_WIND;
         float sweep = (float) Math.toRadians(drawn ? 26 : 6);
         Vector3f left = new Vector3f(-0.12F, B_Y, B_BOW_Z), right = new Vector3f(0.12F, B_Y, B_BOW_Z);
         Quaternionf ql = new Quaternionf().rotationY(-sweep), qr = new Quaternionf().rotationY(sweep);
-        box(p.get(2), left, ql, new Vector3f(-B_ARM, -0.06F, -0.06F), new Vector3f(B_ARM, 0.12F, 0.12F), ticks);
-        box(p.get(3), right, qr, new Vector3f(0, -0.06F, -0.06F), new Vector3f(B_ARM, 0.12F, 0.12F), ticks);
+        part(p.get(1), left, ql, 1, ticks);
+        part(p.get(2), right, qr, 1, ticks);
         // the string from the arms' tips to where it's drawn (the bow's line when it's loosed)
         Vector3f lt = ql.transform(new Vector3f(-B_ARM, 0, 0)).add(left), rt = qr.transform(new Vector3f(B_ARM, 0, 0)).add(right);
         Vector3f nock = new Vector3f(0, B_Y, drawn ? -0.6F : lt.z);
-        string(p.get(4), nock, lt, ticks);
-        string(p.get(5), nock, rt, ticks);
+        string(p.get(3), nock, lt, ticks);
+        string(p.get(4), nock, rt, ticks);
         // the bolt on the stock (gone while it flies; laid on once it's drawn)
         float k = since >= B_DRAWN ? 1 : GONE;
-        box(p.get(6), new Vector3f(0, 0.83F, -0.55F), new Quaternionf(), new Vector3f(-0.04F * k, -0.04F * k, 0), new Vector3f(0.08F * k, 0.08F * k, 1.45F * k), ticks);
-        box(p.get(7), new Vector3f(0, 0.83F, 0.95F), new Quaternionf(), new Vector3f(-0.07F * k, -0.07F * k, -0.07F * k), new Vector3f(0.14F * k, 0.14F * k, 0.14F * k), ticks);
+        part(p.get(5), new Vector3f(0, 0.83F, -0.55F), new Quaternionf(), k, ticks);
     }
 
     /** A length of string from a to b (a thin box along it). */
@@ -243,28 +229,19 @@ final class EngineModels {
 
     private static void catapult(List<Display.BlockDisplay> p, int since, int ticks) {
         // the frame: two beams along, one across at the back; two uprights and the crossbar the arm strikes; the axle
-        box(p.get(0), -0.62F, 0, -1.55F, -0.42F, 0.2F, 0.85F, ticks);
-        box(p.get(1), 0.42F, 0, -1.55F, 0.62F, 0.2F, 0.85F, ticks);
-        box(p.get(2), -0.42F, 0.02F, -1.45F, 0.42F, 0.18F, -1.27F, ticks);
-        box(p.get(3), -0.62F, 0.2F, 0.42F, -0.44F, 1.32F, 0.6F, ticks);
-        box(p.get(4), 0.44F, 0.2F, 0.42F, 0.62F, 1.32F, 0.6F, ticks);
-        box(p.get(5), -0.62F, 1.32F, 0.42F, 0.62F, 1.5F, 0.6F, ticks);
-        box(p.get(6), -0.42F, C_PIVOT.y - 0.07F, C_PIVOT.z - 0.07F, 0.42F, C_PIVOT.y + 0.07F, C_PIVOT.z + 0.07F, ticks);
-        // the arm, turned round the axle
+        part(p.get(0), Parts.at(Parts.CATAPULT_FRAME), new Quaternionf(), 1, ticks);
+        // the arm and its cup (open to the side that throws), turned round the axle
         Quaternionf q = new Quaternionf().rotationX((float) Math.toRadians(catapultAngle(since)));
-        box(p.get(7), C_PIVOT, q, new Vector3f(-0.08F, -0.08F, 0), new Vector3f(0.16F, 0.16F, C_ARM), ticks);
-        // the cup at its end, open to the side that throws (turned over: a composter is open at its +y)
-        Quaternionf cup = new Quaternionf(q).rotateX((float) Math.PI);
-        box(p.get(8), C_PIVOT, cup, new Vector3f(-0.21F, 0.06F, -C_ARM - 0.02F), new Vector3f(0.42F, 0.42F, 0.42F), ticks);
+        part(p.get(1), C_PIVOT, q, 1, ticks);
         // the stone in the cup (let go as the arm flies up; a new one once it's wound down)
         float r = since < C_LET_GO || since >= C_LOADED ? 0.3F : GONE;
         Vector3f in = q.transform(new Vector3f(0, -0.3F, C_ARM - 0.19F)).add(C_PIVOT);
-        box(p.get(9), in, new Quaternionf(), new Vector3f(-r / 2, -r / 2, -r / 2), new Vector3f(r, r, r), ticks);
+        box(p.get(2), in, new Quaternionf(), new Vector3f(-r / 2, -r / 2, -r / 2), new Vector3f(r, r, r), ticks);
     }
 
     /** The model as it will stand so many ticks from now (by the ticks since it began to shoot then), moving there meanwhile. */
     private static void pose(Model m, int ticks) {
-        if (m.parts.size() < (m.engine == 1 ? 8 : 10)) return;
+        if (m.parts.size() < (m.engine == 1 ? 6 : 3)) return;
         int t = m.since >= 1000 ? 1000 : m.since - TURN;
         if (m.engine == 1) ballista(m.parts, t + ticks, ticks);
         else catapult(m.parts, t + ticks, ticks);
