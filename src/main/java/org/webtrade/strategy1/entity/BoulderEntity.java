@@ -28,6 +28,8 @@ public class BoulderEntity extends ThrowableItemProjectile {
     /** Damage to buildings and to those standing near; the radius it hurts in. */
     private float structureDamage, unitDamage, radius;
     private UnitEntity shooter;
+    /** A plague-bearer's bile instead (it poisons where it lands): who spat it. */
+    private net.minecraft.world.entity.Mob spitter;
 
     public BoulderEntity(EntityType<? extends BoulderEntity> type, Level level) {
         super(type, level);
@@ -59,6 +61,26 @@ public class BoulderEntity extends ThrowableItemProjectile {
         level.playSound(null, from.x, from.y, from.z, SoundEvents.CROSSBOW_SHOOT, SoundSource.HOSTILE, 1.4F, 0.5F);
     }
 
+    /** A plague-bearer spits bile at a point: a low arc, a puddle of poison where it lands. */
+    public static void spit(ServerLevel level, net.minecraft.world.entity.Mob spitter, Vec3 from, Vec3 to) {
+        BoulderEntity b = ModContent.BILE.create(level, EntitySpawnReason.TRIGGERED);
+        if (b == null) return;
+        b.setItem(new net.minecraft.world.item.ItemStack(Items.SLIME_BALL));
+        b.spitter = spitter;
+        b.from = from;
+        b.to = to;
+        double d = from.distanceTo(to);
+        b.flight = Math.max(8, (int) (d * 1.1));
+        b.height = Math.max(1.5, d * 0.2);
+        b.unitDamage = 3;
+        b.radius = 1.6F;
+        b.setOwner(spitter);
+        b.snapTo(from.x, from.y, from.z, 0, 0);
+        b.setDeltaMovement(b.at(1).subtract(from));
+        level.addFreshEntity(b);
+        level.playSound(null, from.x, from.y, from.z, SoundEvents.LLAMA_SPIT, SoundSource.HOSTILE, 1.4F, 0.6F);
+    }
+
     private Vec3 at(int t) {
         double f = Math.min(1, t / (double) flight);
         Vec3 p = from.lerp(to, f);
@@ -78,8 +100,11 @@ public class BoulderEntity extends ThrowableItemProjectile {
         Vec3 next = at(age);
         setDeltaMovement(next.subtract(position()));
         setPos(next);
-        if (age % 2 == 0) level.sendParticles(ParticleTypes.SMOKE, getX(), getY(), getZ(), 1, 0.1, 0.1, 0.1, 0);
-        if (age >= flight) impact(level);
+        if (age % 2 == 0) level.sendParticles(spitter != null ? ParticleTypes.ITEM_SLIME : ParticleTypes.SMOKE, getX(), getY(), getZ(), 1, 0.1, 0.1, 0.1, 0);
+        if (age >= flight) {
+            if (spitter != null) splash(level);
+            else impact(level);
+        }
         if (age > flight + 40) discard();
     }
 
@@ -92,6 +117,25 @@ public class BoulderEntity extends ThrowableItemProjectile {
             e.hurtServer(level, damageSources().thrown(this, shooter), unitDamage);
         }
         if (shooter != null) StrategyManager.impact(level, to, shooter.faction(), structureDamage, radius + 1.5F);
+        discard();
+    }
+
+    /** The bile lands: the living it splashes hurt, and a puddle of poison there a while (the dead don't mind it). */
+    private void splash(ServerLevel level) {
+        level.sendParticles(ParticleTypes.ITEM_SLIME, to.x, to.y + 0.3, to.z, 20, 0.6, 0.2, 0.6, 0.1);
+        level.playSound(null, to.x, to.y, to.z, SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 1.2F, 0.7F);
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(to, to).inflate(radius),
+                x -> !(x instanceof net.minecraft.world.entity.monster.Enemy) && !(x instanceof net.minecraft.world.entity.player.Player))) {
+            e.hurtServer(level, damageSources().mobProjectile(this, spitter), unitDamage);
+            e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.POISON, 80, 0));
+        }
+        net.minecraft.world.entity.AreaEffectCloud cloud = new net.minecraft.world.entity.AreaEffectCloud(level, to.x, to.y, to.z);
+        cloud.setRadius(1.8F);
+        cloud.setRadiusPerTick(-0.01F);
+        cloud.setDuration(80);
+        cloud.setWaitTime(0);
+        cloud.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.POISON, 60, 0));
+        level.addFreshEntity(cloud);
         discard();
     }
 

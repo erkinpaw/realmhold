@@ -17,8 +17,11 @@ public final class Parts {
     public static final int TREBUCHET_FRAME = 9;
     public static final int TREBUCHET_BRACE = 10;
     public static final int TREBUCHET_ARM = 11;
+    public static final int RAM_LOG = 12;
+    public static final int PLAGUE_BOILS = 13;
+    public static final int CRAWLER_GUTS = 14;
 
-    public static final int COUNT = 12;
+    public static final int COUNT = 15;
 
     /** Where each part's model stands in its machine's frame (blocks): where to put its display. */
     private static final float[][] AT = {
@@ -33,7 +36,10 @@ public final class Parts {
             {-0.45F, -0.1F, -0.5F},
             {-0.05F, 1.55F, 0.325F},
             {0F, 0F, 0F},
-            {0F, 0F, 0F}};
+            {0F, 0F, 0F},
+            {-0.5F, -0.7F, -1.16F},
+            {-0.51F, -0.82F, -0.61F},
+            {-0.5F, -1.515F, -0.5F}};
 
     private Parts() {
     }
