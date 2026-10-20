@@ -10,6 +10,8 @@ import net.minecraft.world.entity.MobCategory;
 import org.webtrade.strategy1.Strategy1;
 import org.webtrade.strategy1.entity.SoldierEntity;
 
+import java.util.List;
+
 public final class ModContent {
 
     public static final EntityType<SoldierEntity> SOLDIER = entity("soldier",
@@ -47,6 +49,24 @@ public final class ModContent {
     /** The engines' parts, shown by display entities (never set in the world). */
     public static final net.minecraft.world.level.block.Block PART = block("part", PartBlock::new);
 
+    /** The siege's dead with a look of their own: the plague-bearer, the ram-bearer, the crawler, the giant. */
+    public static final EntityType<org.webtrade.strategy1.entity.PlagueZombie> PLAGUE_ZOMBIE = entity("plague_zombie",
+            EntityType.Builder.<org.webtrade.strategy1.entity.PlagueZombie>of(org.webtrade.strategy1.entity.PlagueZombie::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.95F).eyeHeight(1.74F).noLootTable().clientTrackingRange(10));
+    public static final EntityType<org.webtrade.strategy1.entity.RamZombie> RAM_ZOMBIE = entity("ram_zombie",
+            EntityType.Builder.<org.webtrade.strategy1.entity.RamZombie>of(org.webtrade.strategy1.entity.RamZombie::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.95F).eyeHeight(1.74F).noLootTable().clientTrackingRange(10));
+    public static final EntityType<org.webtrade.strategy1.entity.CrawlerZombie> CRAWLER_ZOMBIE = entity("crawler_zombie",
+            EntityType.Builder.<org.webtrade.strategy1.entity.CrawlerZombie>of(org.webtrade.strategy1.entity.CrawlerZombie::new, MobCategory.MONSTER)
+                    .sized(0.8F, 0.6F).eyeHeight(0.4F).noLootTable().clientTrackingRange(10));
+    public static final EntityType<org.webtrade.strategy1.entity.GiantZombie> GIANT_ZOMBIE = entity("giant_zombie",
+            EntityType.Builder.<org.webtrade.strategy1.entity.GiantZombie>of(org.webtrade.strategy1.entity.GiantZombie::new, MobCategory.MONSTER)
+                    .sized(0.6F, 1.95F).eyeHeight(1.74F).noLootTable().clientTrackingRange(10));
+    /** A plague-bearer's spit of bile. */
+    public static final EntityType<org.webtrade.strategy1.entity.BoulderEntity> BILE = entity("bile",
+            EntityType.Builder.<org.webtrade.strategy1.entity.BoulderEntity>of(org.webtrade.strategy1.entity.BoulderEntity::new, MobCategory.MISC)
+                    .sized(0.4F, 0.4F).noLootTable().noSave().clientTrackingRange(10).updateInterval(1));
+
     private ModContent() {
     }
 
@@ -59,6 +79,8 @@ public final class ModContent {
         FabricDefaultAttributeRegistry.register(WARSHIP, org.webtrade.strategy1.entity.ShipEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(SHIELD_ZOMBIE, net.minecraft.world.entity.monster.zombie.Zombie.createAttributes());
         FabricDefaultAttributeRegistry.register(BOMBER_ZOMBIE, net.minecraft.world.entity.monster.zombie.Zombie.createAttributes());
+        for (EntityType<? extends net.minecraft.world.entity.monster.zombie.Zombie> t : List.of(PLAGUE_ZOMBIE, RAM_ZOMBIE, CRAWLER_ZOMBIE, GIANT_ZOMBIE))
+            FabricDefaultAttributeRegistry.register(t, net.minecraft.world.entity.monster.zombie.Zombie.createAttributes());
     }
 
     private static net.minecraft.world.level.block.Block block(String name,

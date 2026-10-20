@@ -23,6 +23,11 @@ public class Strategy1Client implements ClientModInitializer {
         EntityRendererRegistry.register(ModContent.WARSHIP, net.minecraft.client.renderer.entity.NoopRenderer::new);
         EntityRendererRegistry.register(ModContent.SHIELD_ZOMBIE, net.minecraft.client.renderer.entity.ZombieRenderer::new);
         EntityRendererRegistry.register(ModContent.BOMBER_ZOMBIE, net.minecraft.client.renderer.entity.ZombieRenderer::new);
+        EntityRendererRegistry.register(ModContent.PLAGUE_ZOMBIE, ctx -> new org.webtrade.strategy1.client.render.DeadRenderer(ctx, org.webtrade.strategy1.client.render.DeadRenderer.Kind.PLAGUE));
+        EntityRendererRegistry.register(ModContent.RAM_ZOMBIE, ctx -> new org.webtrade.strategy1.client.render.DeadRenderer(ctx, org.webtrade.strategy1.client.render.DeadRenderer.Kind.RAM));
+        EntityRendererRegistry.register(ModContent.CRAWLER_ZOMBIE, ctx -> new org.webtrade.strategy1.client.render.DeadRenderer(ctx, org.webtrade.strategy1.client.render.DeadRenderer.Kind.CRAWLER));
+        EntityRendererRegistry.register(ModContent.GIANT_ZOMBIE, ctx -> new org.webtrade.strategy1.client.render.DeadRenderer(ctx, org.webtrade.strategy1.client.render.DeadRenderer.Kind.GIANT));
+        EntityRendererRegistry.register(ModContent.BILE, ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 1.4F, false));
         EntityRendererRegistry.register(ModContent.BOULDER, ctx -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(ctx, 2.5F, false));
         ClientPlayNetworking.registerGlobalReceiver(Payloads.StructureSync.TYPE, (p, ctx) -> ClientState.structures(p));
         Keys.register();

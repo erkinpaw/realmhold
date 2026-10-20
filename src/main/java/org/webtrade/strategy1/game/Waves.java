@@ -216,8 +216,14 @@ public final class Waves {
         }
     }
 
+    /** The dead with a look of their own, one of each at the head of every wave (from the first night). */
+    private static final List<EntityType<? extends Mob>> OWN = List.of(org.webtrade.strategy1.registry.ModContent.PLAGUE_ZOMBIE,
+            org.webtrade.strategy1.registry.ModContent.RAM_ZOMBIE, org.webtrade.strategy1.registry.ModContent.CRAWLER_ZOMBIE,
+            org.webtrade.strategy1.registry.ModContent.GIANT_ZOMBIE);
+
     /** What comes, the further the nights go. */
     private static EntityType<? extends Mob> kind(int n, int i, RandomSource r) {
+        if (i < OWN.size()) return OWN.get(i);
         List<EntityType<? extends Mob>> pool = new ArrayList<>();
         pool.add(EntityTypes.ZOMBIE);
         pool.add(EntityTypes.ZOMBIE);
@@ -233,6 +239,10 @@ public final class Waves {
         if (n >= 10 && i % 12 == 0) return EntityTypes.RAVAGER;
         if (i % 6 == 2) return org.webtrade.strategy1.registry.ModContent.SHIELD_ZOMBIE;
         if (n >= 2 && i % 7 == 4) return org.webtrade.strategy1.registry.ModContent.BOMBER_ZOMBIE;
+        if (i % 5 == 3) return org.webtrade.strategy1.registry.ModContent.CRAWLER_ZOMBIE;
+        if (i % 9 == 5) return org.webtrade.strategy1.registry.ModContent.PLAGUE_ZOMBIE;
+        if (i % 11 == 7) return org.webtrade.strategy1.registry.ModContent.RAM_ZOMBIE;
+        if (i % 15 == 9) return org.webtrade.strategy1.registry.ModContent.GIANT_ZOMBIE;
         return pool.get(r.nextInt(pool.size()));
     }
 
@@ -242,6 +252,7 @@ public final class Waves {
         m.snapTo(at.x, at.y, at.z, level.getRandom().nextFloat() * 360, 0);
         m.setPersistenceRequired();
         m.addTag(TAG);
+        if (m instanceof org.webtrade.strategy1.entity.DeadZombie dz) dz.arm(n);
         // the dead are tougher every night: more of them to kill, harder blows, a little quicker; helmets from the third
         // night, more armour later (none of it dropped)
         var hp = m.getAttribute(Attributes.MAX_HEALTH);
@@ -262,9 +273,9 @@ public final class Waves {
         if (type == EntityTypes.VINDICATOR) m.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_AXE));
         if (type == EntityTypes.WITHER_SKELETON) m.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
         if (m instanceof org.webtrade.strategy1.entity.ShieldZombie sz) sz.arm(n);
-        if (m instanceof org.webtrade.strategy1.entity.BomberZombie bz) {
-            // (a bomber has his own errand: the walls)
-            bz.arm(n);
+        if (m instanceof org.webtrade.strategy1.entity.BomberZombie || m instanceof org.webtrade.strategy1.entity.RamZombie) {
+            // (a bomber and a ram-bearer have their own errand: the walls, the gates)
+            if (m instanceof org.webtrade.strategy1.entity.BomberZombie bz) bz.arm(n);
             level.addFreshEntity(m);
             WAVE.add(m);
             return m;
