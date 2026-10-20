@@ -418,7 +418,7 @@
   "strategy1.build.gate": "Gate",
   "strategy1.build.gate.info": "Rises before your soldiers, folk and allies; drops when an enemy is near",
   "strategy1.rts.gate_make": "Put a gate here",
-  "strategy1.rts.gate_make_tip": "A gate in the wall where you chose it (click the wall nearer its middle)",
+  "strategy1.rts.gate_make_tip": "Move the mouse along the wall to choose where the gate goes, click to put it (Shift: more), right click: cancel",
   "strategy1.rts.gate_hold": "Hold it open",
   "strategy1.rts.gate_hold_tip": "Open even with an enemy near. Again: by itself once more, open for your own, shut before the enemy",
   "strategy1.ok.gate": "The gate is going up",
